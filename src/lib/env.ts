@@ -23,3 +23,19 @@ export function getServiceRoleKey(): string {
   }
   return 필수('SUPABASE_SERVICE_ROLE_KEY')
 }
+
+/** Gemini API 키. 브라우저로 새어나가면 제3자가 무료 한도를 소진시킬 수 있다. */
+export function getGeminiApiKey(): string {
+  if (typeof window !== 'undefined') {
+    throw new Error('Gemini API 키는 브라우저에서 접근할 수 없습니다')
+  }
+  return 필수('GEMINI_API_KEY')
+}
+
+/** 크론 인증용 비밀값. */
+export function getCronSecret(): string {
+  if (typeof window !== 'undefined') {
+    throw new Error('CRON_SECRET은 브라우저에서 접근할 수 없습니다')
+  }
+  return 필수('CRON_SECRET')
+}

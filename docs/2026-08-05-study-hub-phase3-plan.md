@@ -686,7 +686,7 @@ import { GoogleGenAI, Type } from '@google/genai'
 import { getGeminiApiKey } from '@/lib/env'
 import type { NoteForDigest } from '@/lib/digest-generation'
 
-const 모델 = 'gemini-2.5-flash'
+const 모델 = 'gemini-3.5-flash'
 
 const 응답스키마 = {
   type: Type.OBJECT,
@@ -851,7 +851,7 @@ export async function runDigestPipeline(date: string): Promise<PipelineResult> {
     status: 'done',
     body_md: result.bodyMd,
     has_connections: result.hasConnections,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.5-flash',
     generated_at: new Date().toISOString(),
     error_message: null,
   })
