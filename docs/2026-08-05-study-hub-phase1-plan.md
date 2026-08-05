@@ -1907,7 +1907,7 @@ export default async function HomePage() {
 - [ ] **Step 2: 전체 테스트 실행**
 
 Run: `npm test`
-Expected: PASS — 16개
+Expected: PASS — 20개 (Task 1의 9개 + Task 5의 7개 + 요일 4개)
 
 Run: `npm run test:rls`
 Expected: PASS — 8개
@@ -2083,7 +2083,7 @@ git push
 
 전부 만족해야 2단계로 넘어간다.
 
-- [ ] `npm test` 통과 (16개)
+- [ ] `npm test` 통과 (20개)
 - [ ] `npm run test:rls` 통과 (8개)
 - [ ] `npm run build` 오류 없음
 - [ ] 배포 주소에서 4명 모두 로그인 가능
