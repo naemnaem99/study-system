@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getAllProfiles } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { todayInSeoul } from '@/lib/date'
+import { todayInSeoul, weekdayIndexOf } from '@/lib/date'
 
 const 요일 = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -16,7 +16,9 @@ export default async function HomePage() {
     .eq('studied_on', 오늘)
 
   const 올린사람 = new Set((오늘노트 ?? []).map((n) => n.author_id))
-  const 요일이름 = 요일[new Date(`${오늘}T00:00:00+09:00`).getUTCDay()]
+  // 오늘은 이미 KST 기준 달력 날짜 문자열이므로, UTC 자정으로 파싱해 getUTCDay()로
+  // 읽으면 시간대 변환 없이 그 날짜 자체의 요일을 얻는다.
+  const 요일이름 = 요일[weekdayIndexOf(오늘)]
 
   return (
     <>

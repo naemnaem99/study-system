@@ -27,6 +27,10 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  // beforeAll이 실패하면 A/B가 생성되지 않는다. 이때 정리를 시도하면
+  // TypeError가 원래 오류(로그인 실패 등)를 덮어버리므로 조용히 넘어간다.
+  if (!A || !B) return
+
   // 테스트가 실제 DB에 쓰므로 반드시 치운다.
   if (만든노트ID) await A.from('notes').delete().eq('id', 만든노트ID)
 

@@ -34,11 +34,13 @@ export default async function MemberPage({ params, searchParams }: Props) {
   }
 
   if (month && 월형식.test(month)) {
-    // 해당 월의 1일 이상, 다음 달 1일 미만
     const [y, m] = month.split('-').map(Number)
-    const 시작 = `${month}-01`
-    const 다음달 = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
-    query = query.gte('studied_on', 시작).lt('studied_on', 다음달)
+    if (m >= 1 && m <= 12) {
+      // 해당 월의 1일 이상, 다음 달 1일 미만
+      const 시작 = `${month}-01`
+      const 다음달 = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
+      query = query.gte('studied_on', 시작).lt('studied_on', 다음달)
+    }
   }
 
   const { data: notes, count } = await query

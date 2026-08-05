@@ -1833,7 +1833,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 import Link from 'next/link'
 import { getAllProfiles } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { todayInSeoul } from '@/lib/date'
+import { todayInSeoul, weekdayIndexOf } from '@/lib/date'
 
 const 요일 = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -1848,7 +1848,9 @@ export default async function HomePage() {
     .eq('studied_on', 오늘)
 
   const 올린사람 = new Set((오늘노트 ?? []).map((n) => n.author_id))
-  const 요일이름 = 요일[new Date(`${오늘}T00:00:00+09:00`).getUTCDay()]
+  // 오늘은 이미 KST 기준 달력 날짜 문자열이므로, UTC 자정으로 파싱해 getUTCDay()로
+  // 읽으면 시간대 변환 없이 그 날짜 자체의 요일을 얻는다.
+  const 요일이름 = 요일[weekdayIndexOf(오늘)]
 
   return (
     <>
@@ -1900,7 +1902,7 @@ export default async function HomePage() {
 }
 ```
 
-`요일이름` 계산에 `+09:00` 오프셋을 붙이는 이유는, `new Date('2026-08-05')` 가 UTC 자정으로 해석되어 KST 기준 요일과 어긋날 수 있기 때문이다.
+`오늘`은 `todayInSeoul()`이 이미 KST 기준으로 계산한 'YYYY-MM-DD' 달력 날짜 문자열이다. 여기에 `+09:00` 오프셋을 붙이면 그 문자열이 다시 KST 자정으로 해석되어, UTC로 변환되는 과정에서 하루가 밀리고 `getUTCDay()`는 전날의 요일을 반환한다(예: `2026-08-05T00:00:00+09:00`은 `2026-08-04T15:00:00Z`이므로 8월 4일의 요일이 나온다). 대신 `T00:00:00Z`로 파싱해야 한다 — `오늘` 문자열이 가리키는 달력 날짜를 시간대 변환 없이 그대로 UTC 자정으로 취급하고, `getUTCDay()`로 그 날짜 자체의 요일을 읽는 것이다. `weekdayIndexOf()`(`src/lib/date.ts`)가 이 계산을 담당한다.
 
 - [ ] **Step 2: 전체 테스트 실행**
 

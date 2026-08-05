@@ -16,3 +16,8 @@ export function formatDateInSeoul(d: Date): string {
 export function todayInSeoul(now: Date = new Date()): string {
   return formatDateInSeoul(now)
 }
+
+/** 'YYYY-MM-DD' (KST 기준 달력 날짜) 의 요일 인덱스. 0=일 … 6=토 */
+export function weekdayIndexOf(dateStr: string): number {
+  return new Date(`${dateStr}T00:00:00Z`).getUTCDay()
+}
