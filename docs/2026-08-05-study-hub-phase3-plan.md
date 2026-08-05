@@ -960,7 +960,7 @@ describe('POST /api/cron/digest', () => {
   it('CRON_SECRET이 일치하지 않으면 401', async () => {
     const req = new Request('http://localhost/api/cron/digest', {
       method: 'POST',
-      headers: { authorization: 'Bearer 틀린값' },
+      headers: { authorization: 'Bearer wrong-value' },
     })
     const res = await POST(req)
     expect(res.status).toBe(401)

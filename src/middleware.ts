@@ -39,5 +39,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // /api 는 뺀다. 각 API 라우트가 자체적으로 인증한다(설계 §8.1.1) — 크론처럼
+  // 세션 쿠키가 아예 없는 호출자도 있어서, 미들웨어가 먼저 /login으로
+  // 리다이렉트해버리면 라우트 핸들러가 CRON_SECRET을 검사할 기회조차 없다.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
