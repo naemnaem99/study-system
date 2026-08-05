@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 팀 스터디 허브
 
-## Getting Started
+4인 스터디 팀의 비공개 학습 기록 공간. 각자 공부한 내용을 올리고, 서로 읽고, 팀원별 저장소에 쌓인다.
 
-First, run the development server:
+- 설계: `docs/2026-08-05-team-study-hub-design.md`
+- 1단계 계획: `docs/2026-08-05-study-hub-phase1-plan.md`
+
+## 개발
 
 ```bash
+npm install
+cp .env.local.example .env.local   # 값을 채운다
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 테스트
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test          # 단위 테스트 (날짜·입력 검증)
+npm run test:rls  # 권한 테스트 — 실제 Supabase에 접속한다
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+권한 테스트에는 `.env.test.local` 이 필요하다. 팀원 4명 중 서로 다른 두 계정을 넣는다.
 
-## Learn More
+```
+TEST_USER_A_EMAIL=
+TEST_USER_A_PASSWORD=
+TEST_USER_B_EMAIL=
+TEST_USER_B_PASSWORD=
+```
 
-To learn more about Next.js, take a look at the following resources:
+이 테스트가 검증하는 것은 "남의 노트를 건드릴 수 없다"는 것이다. **권한 결함은 에러를 내지 않고 조용히 존재하므로**, 정책을 손댔다면 반드시 다시 돌린다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 팀원 추가
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Supabase → Authentication → Users → Add user (**Auto Confirm User 체크**)
+2. 생성된 `User UID` 를 복사
+3. SQL Editor에서 `profiles` 에 행 추가
 
-## Deploy on Vercel
+```sql
+insert into public.profiles (id, display_name, slug, sort_order)
+values ('복사한-uuid', '이름', 'slug', 5);
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`slug` 는 URL에 들어가므로 영문 소문자. `sort_order` 는 상단 내비게이션 표시 순서.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+넣은 뒤 반드시 확인한다. UID를 잘못 넣으면 "로그인은 되는데 계속 권한 없음 화면으로 튕기는" 증상이 나오는데, 미등록 계정과 화면상 구분되지 않아 원인을 찾기 어렵다.
+
+```sql
+select p.sort_order, p.display_name, p.slug, u.email
+from public.profiles p join auth.users u on u.id = p.id
+order by p.sort_order;
+```
+
+**가입 페이지는 없다.** 계정은 대시보드에서만 만든다. Authentication 설정에서 `Enable Email provider` 는 켜고, `Allow new users to sign up` 은 끈 상태를 유지한다.
+
+## 구조
+
+```
+src/lib/date.ts          KST 날짜 계산
+src/lib/env.ts           환경변수 검증
+src/lib/validation.ts    노트 입력 검증
+src/lib/auth.ts          현재 사용자 프로필, 접근 게이트
+src/lib/supabase/        브라우저·서버 클라이언트
+src/middleware.ts        세션 갱신, 비로그인 차단
+src/app/(app)/           로그인 + 팀원 등록이 필요한 영역
+supabase/migrations/     스키마와 RLS 정책
+```
+
+권한은 화면이 아니라 **Postgres RLS가 강제한다.** 버튼을 숨기는 것에 의존하지 않는다.
+
+## 다음 단계
+
+- 2단계: 파일 첨부
+- 3단계: 날짜별 AI 정리본
