@@ -15,6 +15,14 @@ export default async function HomePage() {
     .select('id, title, author_id')
     .eq('studied_on', 오늘)
 
+  const { data: 최근정리본 } = await supabase
+    .from('digests')
+    .select('digest_date')
+    .eq('status', 'done')
+    .order('digest_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   const 올린사람 = new Set((오늘노트 ?? []).map((n) => n.author_id))
   // 오늘은 이미 KST 기준 달력 날짜 문자열이므로, UTC 자정으로 파싱해 getUTCDay()로
   // 읽으면 시간대 변환 없이 그 날짜 자체의 요일을 얻는다.
@@ -25,6 +33,15 @@ export default async function HomePage() {
       <h1 className="mb-6 text-xl font-bold">
         {오늘} ({요일이름})
       </h1>
+
+      {최근정리본 && (
+        <Link
+          href={`/digests/${최근정리본.digest_date}`}
+          className="mb-6 inline-block text-sm text-gray-600 hover:underline"
+        >
+          최근 정리본 ({최근정리본.digest_date}) →
+        </Link>
+      )}
 
       <ul className="mb-8 flex gap-6">
         {profiles.map((p) => {
