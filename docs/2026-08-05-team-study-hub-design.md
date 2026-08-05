@@ -82,6 +82,7 @@ profiles
   display_name  text  not null          -- '지호'
   slug          text  not null unique   -- 'jiho', URL에 사용
   avatar_url    text
+  sort_order    integer not null default 0  -- 내비게이션 표시 순서
   created_at    timestamptz not null default now()
 
 notes

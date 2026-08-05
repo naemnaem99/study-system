@@ -397,6 +397,9 @@ create table public.profiles (
   display_name text not null,
   slug         text not null unique,
   avatar_url   text,
+  -- 내비게이션에 표시할 순서. 이름순 정렬은 승인된 화면(지호 민수 서연 태현)과
+  -- 어긋나므로 순서를 직접 지정한다.
+  sort_order   integer not null default 0,
   created_at   timestamptz not null default now()
 );
 
@@ -533,19 +536,24 @@ Expected: "Success. No rows returned"
 SQL Editor에서 실행한다. **`id` 는 사전 준비 4단계에서 복사한 실제 `User UID` 로 바꿔야 한다.** 이름과 slug도 실제 팀원에 맞게 바꾼다. slug는 URL에 들어가므로 영문 소문자로 쓴다.
 
 ```sql
-insert into public.profiles (id, display_name, slug) values
-  ('여기에-A의-uuid', '지호', 'jiho'),
-  ('여기에-B의-uuid', '민수', 'minsu'),
-  ('여기에-C의-uuid', '서연', 'seoyeon'),
-  ('여기에-D의-uuid', '태현', 'taehyun');
+insert into public.profiles (id, display_name, slug, sort_order) values
+  ('여기에-A의-uuid', '지호', 'jiho',    1),
+  ('여기에-B의-uuid', '민수', 'minsu',   2),
+  ('여기에-C의-uuid', '서연', 'seoyeon', 3),
+  ('여기에-D의-uuid', '태현', 'taehyun', 4);
 ```
 
-확인:
+**uuid를 제대로 넣었는지 반드시 확인한다.** 이 검증을 건너뛰면 나중에 "로그인은 되는데 모든 페이지가 `/no-access` 로 간다"는 증상을 만나게 되고, 화면상 "등록되지 않은 계정"과 구분되지 않아 원인을 찾기 어렵다.
 
 ```sql
-select id, display_name, slug from public.profiles;
+select p.slug, p.display_name, u.email
+from public.profiles p
+join auth.users u on u.id = p.id
+order by p.sort_order;
 ```
-Expected: 4행
+
+Expected: **4행**, 각 slug 옆에 그 팀원의 실제 이메일이 붙어 있다.
+4행보다 적게 나오면 uuid를 잘못 넣은 것이다. 빠진 사람의 `User UID` 를 다시 복사해 수정한다.
 
 - [ ] **Step 6: 테스트 계정 파일 작성**
 
@@ -598,6 +606,11 @@ beforeAll(async () => {
 afterAll(async () => {
   // 테스트가 실제 DB에 쓰므로 반드시 치운다.
   if (만든노트ID) await A.from('notes').delete().eq('id', 만든노트ID)
+
+  // 사칭 테스트가 실패하면(= 정책이 잘못돼 INSERT가 통과하면) 추적되지 않은
+  // 행이 남아 팀 홈 화면에 '[테스트] 사칭 시도'가 뜬다. 제목으로 한 번 더 쓸어낸다.
+  await A.from('notes').delete().like('title', '[테스트]%')
+  await B.from('notes').delete().like('title', '[테스트]%')
 })
 
 describe('notes 권한', () => {
@@ -942,7 +955,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `type Profile = { id: string; display_name: string; slug: string; avatar_url: string | null }`
   - `getCurrentProfile(): Promise<Profile | null>`
   - `requireProfile(): Promise<Profile>` — 미등록이면 `/no-access` 로 리다이렉트
-  - `getAllProfiles(): Promise<Profile[]>` — `display_name` 오름차순
+  - `getAllProfiles(): Promise<Profile[]>` — `sort_order` 오름차순
 
 - [ ] **Step 1: 인증 헬퍼 작성**
 
@@ -992,7 +1005,7 @@ export async function getAllProfiles(): Promise<Profile[]> {
   const { data } = await supabase
     .from('profiles')
     .select(프로필컬럼)
-    .order('display_name', { ascending: true })
+    .order('sort_order', { ascending: true })
 
   return (data as Profile[] | null) ?? []
 }
@@ -1207,6 +1220,13 @@ export type ParseResult =
   | { ok: true; value: NoteInput }
   | { ok: false; message: string }
 
+/**
+ * 노트 폼의 액션 상태. 서버 액션과 클라이언트 폼이 함께 쓰므로
+ * 어느 한쪽에 두지 않고 여기에 둔다. 두 곳에 같은 타입을 적어두면
+ * 한쪽만 바뀌었을 때 조용히 어긋난다.
+ */
+export type NoteFormState = { error: string | null }
+
 const 제목최대 = 200
 const 본문최대 = 50_000
 const 날짜형식 = /^\d{4}-\d{2}-\d{2}$/
@@ -1259,9 +1279,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { requireProfile } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { parseNoteInput } from '@/lib/validation'
-
-export type NoteFormState = { error: string | null }
+import { parseNoteInput, type NoteFormState } from '@/lib/validation'
 
 export async function createNote(_prev: NoteFormState, formData: FormData): Promise<NoteFormState> {
   const profile = await requireProfile()
@@ -1299,13 +1317,13 @@ export async function createNote(_prev: NoteFormState, formData: FormData): Prom
 
 `src/components/NoteForm.tsx`. 작성과 수정이 함께 쓴다. **태그·카테고리 입력칸을 만들지 않는다** (§6).
 
-`NoteFormState` 는 액션 파일에서 타입만 가져온다. 같은 타입을 두 곳에 적어두면 한쪽만 바뀌었을 때 조용히 어긋난다. 타입 전용 import는 컴파일 시 지워지므로 서버 액션 파일을 클라이언트 번들로 끌어오지 않는다.
+`NoteFormState` 는 `lib/validation.ts` 에서 가져온다. 서버 액션 파일에서 가져오면 `@/app/(app)/notes/actions` 처럼 괄호가 든 경로를 import하게 되는데, 라우트 그룹 경로는 도구에 따라 해석이 갈릴 수 있어 피한다.
 
 ```tsx
 'use client'
 
 import { useActionState } from 'react'
-import type { NoteFormState } from '@/app/(app)/notes/actions'
+import type { NoteFormState } from '@/lib/validation'
 
 type Props = {
   action: (prev: NoteFormState, formData: FormData) => Promise<NoteFormState>
@@ -1475,7 +1493,13 @@ export async function deleteNote(formData: FormData): Promise<void> {
   if (!id) redirect('/')
 
   const supabase = await createSupabaseServerClient()
-  await supabase.from('notes').delete().eq('id', id)
+  const { data } = await supabase.from('notes').delete().eq('id', id).select('id')
+
+  // 수정과 마찬가지로, RLS는 에러 대신 '삭제된 행 0개'로 막는다.
+  // 결과를 버리고 리다이렉트하면 실패를 성공처럼 보여주게 된다.
+  if (!data || data.length === 0) {
+    redirect(`/notes/${id}`)
+  }
 
   revalidatePath('/')
   revalidatePath(`/members/${profile.slug}`)
@@ -1483,7 +1507,35 @@ export async function deleteNote(formData: FormData): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: 노트 보기 페이지 작성**
+- [ ] **Step 2: 삭제 버튼 컴포넌트 작성**
+
+`src/components/DeleteNoteButton.tsx`. 삭제는 되돌릴 수 없으므로 한 번 묻는다. 노트 보기 페이지는 서버 컴포넌트라 확인 창을 띄우려면 작은 클라이언트 컴포넌트가 필요하다.
+
+```tsx
+'use client'
+
+import { deleteNote } from '@/app/(app)/notes/actions'
+
+export function DeleteNoteButton({ noteId }: { noteId: string }) {
+  return (
+    <form
+      action={deleteNote}
+      onSubmit={(e) => {
+        if (!confirm('이 노트를 삭제할까요? 되돌릴 수 없습니다.')) {
+          e.preventDefault()
+        }
+      }}
+    >
+      <input type="hidden" name="id" value={noteId} />
+      <button type="submit" className="rounded border px-3 py-1 text-red-600">
+        삭제
+      </button>
+    </form>
+  )
+}
+```
+
+- [ ] **Step 3: 노트 보기 페이지 작성**
 
 `src/app/(app)/notes/[id]/page.tsx`. 마크다운 렌더러는 아직 붙이지 않는다 — 라이브러리를 하나 더 들이기 전에 본문이 저장·조회되는지부터 확실히 한다. 지금은 줄바꿈을 보존해 그대로 보여준다.
 
@@ -1492,7 +1544,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { requireProfile } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { deleteNote } from '../actions'
+import { DeleteNoteButton } from '@/components/DeleteNoteButton'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -1531,12 +1583,7 @@ export default async function NotePage({ params }: Props) {
           <Link href={`/notes/${note.id}/edit`} className="rounded border px-3 py-1">
             수정
           </Link>
-          <form action={deleteNote}>
-            <input type="hidden" name="id" value={note.id} />
-            <button type="submit" className="rounded border px-3 py-1 text-red-600">
-              삭제
-            </button>
-          </form>
+          <DeleteNoteButton noteId={note.id} />
         </div>
       )}
     </article>
@@ -1544,7 +1591,7 @@ export default async function NotePage({ params }: Props) {
 }
 ```
 
-- [ ] **Step 3: `NoteForm` 에 hiddenFields 지원 추가**
+- [ ] **Step 4: `NoteForm` 에 hiddenFields 지원 추가**
 
 수정 액션은 어느 노트인지 알아야 하므로 폼이 `id` 를 함께 보내야 한다. `src/components/NoteForm.tsx` 를 세 군데 고친다.
 
@@ -1569,7 +1616,7 @@ export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hidde
         ))}
 ```
 
-- [ ] **Step 4: 노트 수정 페이지 작성**
+- [ ] **Step 5: 노트 수정 페이지 작성**
 
 `src/app/(app)/notes/[id]/edit/page.tsx`:
 
@@ -1613,7 +1660,7 @@ export default async function EditNotePage({ params }: Props) {
 }
 ```
 
-- [ ] **Step 5: 수동 확인**
+- [ ] **Step 6: 수동 확인**
 
 Run: `npm run dev`
 
@@ -1621,9 +1668,10 @@ Run: `npm run dev`
 2. 수정 → 내용 바꾸고 저장 → 반영 확인
 3. 다른 팀원 계정으로 로그인해 같은 노트를 연다 → **수정·삭제 버튼이 보이지 않아야 한다**
 4. 그 상태에서 주소창에 `/notes/[id]/edit` 직접 입력 → 노트 보기로 되돌려져야 한다
-5. 자기 계정으로 삭제 → 자기 저장소로 이동 (아직 404. 다음 태스크에서 만든다)
+5. 자기 계정으로 삭제 → 확인 창이 뜨고, 취소하면 삭제되지 않는다
+6. 확인을 누르면 자기 저장소로 이동 (아직 404. 다음 태스크에서 만든다)
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 7: 커밋**
 
 ```bash
 git add -A
@@ -2001,7 +2049,7 @@ TEST_USER_B_PASSWORD=
 
 1. Supabase → Authentication → Users → Add user
 2. 생성된 User UID를 복사
-3. SQL Editor에서 `profiles` 에 행 추가 (id는 복사한 UID, slug는 영문 소문자)
+3. SQL Editor에서 `profiles` 에 행 추가 (id는 복사한 UID, slug는 영문 소문자, sort_order는 내비게이션 표시 순서)
 
 가입 페이지는 없다. 계정은 대시보드에서만 만든다.
 
