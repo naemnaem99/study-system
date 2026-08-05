@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { requireProfile } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { DeleteNoteButton } from '@/components/DeleteNoteButton'
+import { Markdown } from '@/components/Markdown'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -34,7 +35,7 @@ export default async function NotePage({ params }: Props) {
 
       <h1 className="mb-6 text-2xl font-bold">{note.title}</h1>
 
-      <div className="whitespace-pre-wrap leading-relaxed">{note.body_md}</div>
+      <Markdown>{note.body_md}</Markdown>
 
       {내노트 && (
         <div className="mt-10 flex gap-3 border-t pt-4 text-sm">
