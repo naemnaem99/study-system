@@ -8,15 +8,20 @@ type Props = {
   initial?: { title: string; bodyMd: string; studiedOn: string }
   submitLabel: string
   defaultStudiedOn: string
+  hiddenFields?: Record<string, string>
 }
 
 const 초기상태: NoteFormState = { error: null }
 
-export function NoteForm({ action, initial, submitLabel, defaultStudiedOn }: Props) {
+export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hiddenFields }: Props) {
   const [state, formAction, pending] = useActionState(action, 초기상태)
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {hiddenFields &&
+        Object.entries(hiddenFields).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
       <div className="flex flex-col gap-1">
         <label htmlFor="title" className="text-sm text-gray-600">제목</label>
         <input
