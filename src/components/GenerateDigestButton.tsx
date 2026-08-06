@@ -8,15 +8,16 @@ type Props = {
   label?: string
   /** 목록 화면은 만든 정리본으로 이동하고, 상세 화면은 제자리에서 새로고침한다. */
   afterSuccess?: 'refresh' | 'navigate'
-  /** 입력 해시가 달라야 AI를 호출하지만, 실행 전 사용자가 의도를 확인한다. */
+  /** 실행 전 사용자가 의도를 확인한다. */
   confirmMessage?: string
 }
 
+/** 클릭하면 기록이 그대로여도 항상 AI를 다시 호출해 정리본과 마인드맵을 재분류한다(temperature>0이라 결과가 달라질 수 있음). */
 export function GenerateDigestButton({
   date,
   label = '다시 생성',
   afterSuccess = 'refresh',
-  confirmMessage = '변경된 기록을 정리본과 마인드맵에 반영할까요? 기록이 같으면 AI를 호출하지 않습니다.',
+  confirmMessage = '정리본과 마인드맵을 다시 생성할까요? AI를 다시 호출합니다.',
 }: Props) {
   const [생성중, set생성중] = useState(false)
   const [안내, set안내] = useState<{ text: string; 오류: boolean } | null>(null)
@@ -27,7 +28,11 @@ export function GenerateDigestButton({
     set생성중(true)
     set안내(null)
     try {
-      const res = await fetch(`/api/digests/${date}/generate`, { method: 'POST' })
+      const res = await fetch(`/api/digests/${date}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      })
       const body = await res.json()
       if (!res.ok) {
         set안내({ text: body.error ?? '생성에 실패했습니다', 오류: true })
@@ -35,11 +40,9 @@ export function GenerateDigestButton({
       }
 
       if (body.skipped) {
-        const text = body.reason === 'unchanged'
-          ? '변경된 기록이 없어 AI를 호출하지 않았습니다.'
-          : body.reason === 'in-progress'
-            ? '같은 날짜의 생성 작업이 이미 진행 중입니다.'
-            : '아직 올라온 노트가 없습니다.'
+        const text = body.reason === 'in-progress'
+          ? '같은 날짜의 생성 작업이 이미 진행 중입니다.'
+          : '아직 올라온 노트가 없습니다.'
         set안내({ text, 오류: false })
         return
       }
