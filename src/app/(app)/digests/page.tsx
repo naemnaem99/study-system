@@ -44,7 +44,7 @@ export default async function DigestsPage() {
             date={오늘}
             label="오늘 정리본 만들기"
             afterSuccess="navigate"
-            confirmMessage="AI를 사용해 오늘 정리본을 지금 만들까요? 무료 API 사용량이 차감될 수 있습니다."
+            confirmMessage="오늘 기록을 정리본과 마인드맵에 반영할까요? 변경이 없으면 AI를 호출하지 않습니다."
           />
         </div>
       </header>

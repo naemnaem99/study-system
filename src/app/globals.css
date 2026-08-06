@@ -51,6 +51,61 @@ button, input, textarea { font: inherit; }
 
 .storyset-float { animation: storyset-float 5.8s ease-in-out infinite; }
 
+.knowledge-canvas { isolation: isolate; }
+
+.knowledge-branch {
+  stroke: color-mix(in srgb, var(--study) 24%, transparent);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.knowledge-relation {
+  stroke: color-mix(in srgb, var(--study) 45%, transparent);
+  stroke-width: 1.25;
+  stroke-dasharray: 5 6;
+  vector-effect: non-scaling-stroke;
+}
+
+.knowledge-note-line {
+  stroke: color-mix(in srgb, var(--leaf) 42%, transparent);
+  stroke-width: .8;
+  vector-effect: non-scaling-stroke;
+}
+
+.knowledge-node-topic {
+  border-color: color-mix(in srgb, var(--study) 26%, white);
+  background: color-mix(in srgb, white 88%, var(--mist));
+  color: var(--study);
+  transition: transform 220ms cubic-bezier(.22, 1, .36, 1),
+    background-color 180ms ease, color 180ms ease, box-shadow 220ms ease;
+}
+
+.knowledge-node-topic.is-unclassified {
+  border-style: dashed;
+  background: #f4f5f2;
+  color: color-mix(in srgb, var(--ink) 52%, transparent);
+}
+
+.knowledge-node-topic.is-selected {
+  background: var(--study);
+  color: white;
+  box-shadow: 0 12px 30px rgba(47, 125, 90, .24), 0 0 0 7px rgba(116, 184, 146, .13);
+}
+
+.knowledge-node-note {
+  width: 10px;
+  height: 10px;
+  border: 2px solid white;
+  background: var(--leaf);
+  box-shadow: 0 2px 7px rgba(25, 53, 42, .22);
+  transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.knowledge-node-note.is-selected {
+  background: var(--ink);
+  box-shadow: 0 0 0 6px rgba(47, 125, 90, .14);
+}
+
 .surface-lift {
   transition: transform 220ms cubic-bezier(.22, 1, .36, 1),
     box-shadow 220ms ease, border-color 220ms ease, background-color 220ms ease;
@@ -82,6 +137,18 @@ button, input, textarea { font: inherit; }
 
   .growth-ring:hover::before { transform: scale(1.08) rotate(8deg); }
   .growth-ring:hover::after { transform: scale(1.13) rotate(-8deg); opacity: .8; }
+
+  .knowledge-node-topic:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: var(--study);
+    color: white;
+    box-shadow: 0 12px 28px rgba(47, 125, 90, .2);
+  }
+
+  .knowledge-node-note:hover {
+    transform: translate(-50%, -50%) scale(1.7);
+    background: var(--study);
+  }
 }
 
 ::selection { background: #cce8d7; color: #19352a; }

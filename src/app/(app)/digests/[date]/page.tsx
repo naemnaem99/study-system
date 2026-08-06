@@ -23,7 +23,7 @@ export default async function DigestDetailPage({ params }: Props) {
         title="아직 정리본이 없습니다"
         description="이 날짜의 기록이 있다면 지금 정리본을 생성할 수 있습니다."
         actionLabel="지금 생성"
-        confirmMessage="AI를 사용해 이 날짜의 정리본을 지금 만들까요? 무료 API 사용량이 차감될 수 있습니다."
+        confirmMessage="이 날짜의 기록을 정리본과 마인드맵에 반영할까요? 변경이 없으면 AI를 호출하지 않습니다."
       />
     )
   }
