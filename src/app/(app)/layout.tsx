@@ -6,9 +6,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profiles = await getAllProfiles()
 
   return (
-    <>
+    <div className="min-h-screen bg-paper">
       <Nav profiles={profiles} current={profile} />
-      <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
-    </>
+      <div className="min-w-0 md:pl-72">
+        <main className="mx-auto w-full max-w-[1240px] px-5 pb-16 pt-8 sm:px-9 sm:pt-10 lg:px-14 lg:pb-24 lg:pt-14">{children}</main>
+      </div>
+    </div>
   )
 }

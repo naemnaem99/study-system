@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useRef, useState } from 'react'
+import Link from 'next/link'
 import type { NoteFormState } from '@/lib/validation'
 import { parseMarkdownFile } from '@/lib/markdown-import'
 
@@ -10,11 +11,12 @@ type Props = {
   submitLabel: string
   defaultStudiedOn: string
   hiddenFields?: Record<string, string>
+  author: { displayName: string; slug: string }
 }
 
 const 초기상태: NoteFormState = { error: null }
 
-export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hiddenFields }: Props) {
+export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hiddenFields, author }: Props) {
   const [state, formAction, pending] = useActionState(action, 초기상태)
   const [불러오기오류, set불러오기오류] = useState<string | null>(null)
   const 제목참조 = useRef<HTMLInputElement>(null)
@@ -39,14 +41,28 @@ export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hidde
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="flex max-w-4xl flex-col gap-7">
       {hiddenFields &&
         Object.entries(hiddenFields).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
         ))}
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="markdownFile" className="text-sm text-gray-600">
+      <div className="surface-lift flex flex-wrap items-center gap-4 rounded-2xl border border-leaf/35 bg-mist/75 px-5 py-4 sm:px-6">
+        <span className="growth-ring relative grid size-11 shrink-0 place-items-center rounded-full bg-study text-sm font-bold text-white">
+          {author.displayName.slice(0, 1)}
+        </span>
+        <div className="min-w-0">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-study">Writing as</p>
+          <p className="mt-1 font-bold text-ink">{author.displayName}</p>
+          <p className="mt-1 text-xs leading-5 text-ink/50">저장하면 {author.displayName}의 개인 저장소에 기록됩니다.</p>
+        </div>
+        <Link href={`/members/${author.slug}`} className="ml-auto hidden shrink-0 text-xs font-semibold text-study hover:text-ink sm:block">
+          내 저장소 보기
+        </Link>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label htmlFor="markdownFile" className="text-xs font-bold text-ink/62">
           마크다운 파일 불러오기
         </label>
         <input
@@ -58,13 +74,13 @@ export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hidde
             const f = e.target.files?.[0]
             if (f) void 파일불러오기(f)
           }}
-          className="text-sm file:mr-3 file:rounded file:border file:bg-white file:px-3 file:py-1"
+          className="rounded-2xl border border-dashed border-hairline bg-white p-3 text-sm text-ink/55 transition-colors hover:border-leaf file:mr-3 file:rounded-xl file:border-0 file:bg-mist file:px-4 file:py-2 file:text-xs file:font-bold file:text-study"
         />
         {불러오기오류 && <p className="text-sm text-red-600">{불러오기오류}</p>}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="title" className="text-sm text-gray-600">제목</label>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="title" className="text-xs font-bold text-ink/62">제목</label>
         <input
           ref={제목참조}
           id="title"
@@ -72,24 +88,28 @@ export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hidde
           defaultValue={initial?.title}
           maxLength={200}
           required
-          className="rounded border px-3 py-2"
+          placeholder="오늘 무엇을 배웠나요?"
+          className="min-h-13 rounded-xl border border-hairline bg-white px-4 py-3 text-lg font-bold text-ink outline-none transition-all placeholder:font-medium placeholder:text-ink/25 focus:border-study focus:ring-4 focus:ring-study/10"
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="studiedOn" className="text-sm text-gray-600">공부한 날짜</label>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="studiedOn" className="text-xs font-bold text-ink/62">공부한 날짜</label>
         <input
           id="studiedOn"
           name="studiedOn"
           type="date"
           defaultValue={initial?.studiedOn ?? defaultStudiedOn}
           required
-          className="w-44 rounded border px-3 py-2"
+          className="min-h-11 w-full rounded-xl border border-hairline bg-white px-4 py-2.5 outline-none transition-all focus:border-study focus:ring-4 focus:ring-study/10 sm:w-52"
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="bodyMd" className="text-sm text-gray-600">내용 (마크다운)</label>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <label htmlFor="bodyMd" className="text-xs font-bold text-ink/62">내용</label>
+          <span className="font-mono text-[10px] text-ink/32">Markdown supported</span>
+        </div>
         <textarea
           ref={본문참조}
           id="bodyMd"
@@ -97,15 +117,16 @@ export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hidde
           defaultValue={initial?.bodyMd}
           rows={20}
           required
-          className="rounded border px-3 py-2 font-mono text-sm"
+          placeholder="배운 내용, 질문, 다음에 확인할 것을 자유롭게 적어보세요."
+          className="min-h-[460px] resize-y rounded-2xl border border-hairline bg-white px-5 py-4 font-mono text-[13px] leading-7 text-ink outline-none transition-all placeholder:text-ink/25 focus:border-study focus:ring-4 focus:ring-study/10"
         />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-4 border-t border-hairline pt-6">
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+          className="min-h-12 rounded-xl bg-study px-6 text-sm font-bold text-white shadow-[0_10px_24px_rgba(47,125,90,0.16)] transition-all hover:-translate-y-0.5 hover:bg-ink hover:shadow-[0_14px_30px_rgba(25,53,42,0.2)] disabled:translate-y-0 disabled:opacity-50"
         >
           {pending ? '저장 중…' : submitLabel}
         </button>

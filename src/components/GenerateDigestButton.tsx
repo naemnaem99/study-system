@@ -8,18 +8,22 @@ type Props = {
   label?: string
   /** 목록 화면은 만든 정리본으로 이동하고, 상세 화면은 제자리에서 새로고침한다. */
   afterSuccess?: 'refresh' | 'navigate'
+  /** 어느 진입점이든 AI 호출은 무료 할당량을 깎는다. 누르기 전에 반드시 되묻는다. */
+  confirmMessage?: string
 }
 
 export function GenerateDigestButton({
   date,
   label = '다시 생성',
   afterSuccess = 'refresh',
+  confirmMessage = 'AI를 사용해 이 날짜의 정리본을 다시 생성할까요? 무료 API 사용량이 차감될 수 있습니다.',
 }: Props) {
   const [생성중, set생성중] = useState(false)
   const [안내, set안내] = useState<{ text: string; 오류: boolean } | null>(null)
   const router = useRouter()
 
   async function 생성하기() {
+    if (!window.confirm(confirmMessage)) return
     set생성중(true)
     set안내(null)
     try {
@@ -50,12 +54,12 @@ export function GenerateDigestButton({
         type="button"
         onClick={() => void 생성하기()}
         disabled={생성중}
-        className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+        className="inline-flex min-h-10 items-center rounded-xl bg-study px-4 text-xs font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-ink disabled:translate-y-0 disabled:opacity-50"
       >
         {생성중 ? '생성 중…' : label}
       </button>
       {안내 && (
-        <p className={`mt-2 text-sm ${안내.오류 ? 'text-red-600' : 'text-gray-500'}`}>
+        <p className={`mt-2 text-sm ${안내.오류 ? 'text-red-600' : 'text-ink/50'}`}>
           {안내.text}
         </p>
       )}

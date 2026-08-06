@@ -4,6 +4,15 @@ import { NextResponse, type NextRequest } from 'next/server'
 const 공개경로 = ['/login', '/no-access']
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname
+
+  // 로그인·권한 안내 화면은 Supabase 연결 없이도 렌더링할 수 있어야 한다.
+  // 공개 경로에서 먼저 클라이언트를 만들면 환경변수 설정 오류가 로그인 화면까지
+  // 500으로 막아, 사용자가 설정 문제를 복구할 진입점 자체가 사라진다.
+  if (공개경로.includes(path)) {
+    return NextResponse.next({ request })
+  }
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -28,8 +37,7 @@ export async function middleware(request: NextRequest) {
   // getUser()를 호출해야 만료된 세션이 갱신된다.
   const { data: { user } } = await supabase.auth.getUser()
 
-  const path = request.nextUrl.pathname
-  if (!user && !공개경로.includes(path)) {
+  if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
