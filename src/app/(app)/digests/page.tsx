@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { todayInSeoul } from '@/lib/date'
 import { GenerateDigestButton } from '@/components/GenerateDigestButton'
+import { hasDigestContent } from '@/lib/digest'
 
 export default async function DigestsPage() {
   // 대상 날짜는 서버에서 KST로 정한다. 클라이언트 시계를 쓰면 시간대에 따라
@@ -11,10 +12,12 @@ export default async function DigestsPage() {
   const supabase = await createSupabaseServerClient()
   const { data: digests } = await supabase
     .from('digests')
-    .select('digest_date, status, one_liner')
+    .select('digest_date, status, one_liner, body_md')
     .order('digest_date', { ascending: false })
 
-  const 완료목록 = (digests ?? []).filter((d) => d.status === 'done')
+  // status가 아니라 body_md 존재 여부로 판단한다: 이미 완성된 정리본을 재생성하다
+  // AI 호출이 실패하면 status만 'failed'로 바뀌고 body_md는 그대로 남기 때문이다.
+  const 완료목록 = (digests ?? []).filter(hasDigestContent)
   const 날짜들 = 완료목록.map((d) => d.digest_date)
 
   const { data: 참여노트 } =
@@ -44,7 +47,7 @@ export default async function DigestsPage() {
             date={오늘}
             label="오늘 정리본 만들기"
             afterSuccess="navigate"
-            confirmMessage="오늘 기록을 정리본과 마인드맵에 반영할까요? 변경이 없으면 AI를 호출하지 않습니다."
+            confirmMessage="오늘 기록을 정리본과 마인드맵에 반영할까요? AI를 다시 호출합니다."
           />
         </div>
       </header>

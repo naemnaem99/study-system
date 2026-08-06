@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Markdown } from '@/components/Markdown'
 import { GenerateDigestButton } from '@/components/GenerateDigestButton'
+import { hasDigestContent } from '@/lib/digest'
 
 type Props = { params: Promise<{ date: string }> }
 
@@ -23,12 +24,12 @@ export default async function DigestDetailPage({ params }: Props) {
         title="아직 정리본이 없습니다"
         description="이 날짜의 기록이 있다면 지금 정리본을 생성할 수 있습니다."
         actionLabel="지금 생성"
-        confirmMessage="이 날짜의 기록을 정리본과 마인드맵에 반영할까요? 변경이 없으면 AI를 호출하지 않습니다."
+        confirmMessage="이 날짜의 기록을 정리본과 마인드맵에 반영할까요?"
       />
     )
   }
 
-  if (digest.status !== 'done' || !digest.body_md) {
+  if (!hasDigestContent(digest)) {
     return (
       <DigestStatus
         date={date}
@@ -58,10 +59,15 @@ export default async function DigestDetailPage({ params }: Props) {
           <GenerateDigestButton date={date} />
         </div>
       </header>
+      {digest.status === 'failed' && (
+        <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+          가장 최근 재생성 시도가 실패했습니다. 아래는 마지막으로 성공한 정리본입니다.
+        </p>
+      )}
       <div className="grid gap-8 pt-8 lg:grid-cols-[130px_minmax(0,780px)] lg:gap-10">
         <aside className="hidden lg:block">
           <span className="grid size-10 place-items-center rounded-full bg-mist text-study">✦</span>
-          <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-ink/35">Team knowledge</p>
+          <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-ink/35">TOKENAIRES</p>
         </aside>
         <Markdown>{digest.body_md}</Markdown>
       </div>

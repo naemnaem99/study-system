@@ -19,7 +19,10 @@ export type PipelineResult =
  * §8.2 처리 순서 전체를 담당한다. service role로 실행되며 RLS를 우회하므로,
  * 이 함수 자체는 인증하지 않는다 — 호출자(라우트 핸들러)가 먼저 인증을 마쳐야 한다.
  */
-export async function runDigestPipeline(date: string): Promise<PipelineResult> {
+export async function runDigestPipeline(
+  date: string,
+  options?: { force?: boolean },
+): Promise<PipelineResult> {
   const supabase = createSupabaseServiceClient()
 
   const { data: notes, error: 조회오류 } = await supabase
@@ -65,6 +68,7 @@ export async function runDigestPipeline(date: string): Promise<PipelineResult> {
   const { data: claim, error: claimError } = await supabase.rpc('claim_knowledge_generation', {
     p_generation_date: date,
     p_input_hash: inputHash,
+    p_force: options?.force ?? false,
   })
 
   if (claimError) return { ok: false, message: 'AI 생성 작업을 잠그지 못했습니다' }

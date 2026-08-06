@@ -115,8 +115,10 @@ function graphLayout(
   const noteNodes: GraphNode[] = []
 
   for (const note of notes.slice(0, 24)) {
-    const topicId = mappings.find((mapping) => mapping.noteId === note.id && topicPoints.has(mapping.topicId))?.topicId
-    if (!topicId) continue
+    const noteMappings = mappings.filter((mapping) => mapping.noteId === note.id && topicPoints.has(mapping.topicId))
+    if (noteMappings.length === 0) continue
+    // 위치는 confidence가 가장 높은(가장 중심적인) 주제를 기준으로 앵커링한다.
+    const topicId = [...noteMappings].sort((a, b) => b.confidence - a.confidence)[0].topicId
     const anchor = topicPoints.get(topicId)!
     const index = noteIndexByTopic.get(topicId) ?? 0
     noteIndexByTopic.set(topicId, index + 1)
@@ -493,10 +495,29 @@ export function MindmapExplorer({
                   if (!source || !target) return null
                   return <line key={`${relation.sourceTopicId}-${relation.targetTopicId}-${relation.relationType}`} x1={source.point.x} y1={source.point.y} x2={target.point.x} y2={target.point.y} className="knowledge-relation" />
                 })}
-                {graphNodes.filter((node): node is Extract<GraphNode, { kind: 'note' }> => node.kind === 'note').map((node) => {
-                  const topic = graphNodeMap.get(`topic:${node.topicId}`)
-                  if (!topic) return null
-                  return <line key={`note-${node.id}`} x1={topic.point.x} y1={topic.point.y} x2={node.point.x} y2={node.point.y} className="knowledge-note-line" />
+                {graphNodes.filter((node): node is Extract<GraphNode, { kind: 'note' }> => node.kind === 'note').flatMap((node) => {
+                  const primaryTopic = graphNodeMap.get(`topic:${node.topicId}`)
+                  if (!primaryTopic) return []
+                  const lines = [
+                    <line key={`note-${node.id}`} x1={primaryTopic.point.x} y1={primaryTopic.point.y} x2={node.point.x} y2={node.point.y} className="knowledge-note-line" />,
+                  ]
+                  // confidence가 가장 높은 주제는 위 실선으로, 나머지 연관 주제는 옅은 점선으로 이어준다.
+                  for (const mapping of filtered.mappings) {
+                    if (mapping.noteId !== node.id || mapping.topicId === node.topicId) continue
+                    const secondaryTopic = graphNodeMap.get(`topic:${mapping.topicId}`)
+                    if (!secondaryTopic) continue
+                    lines.push(
+                      <line
+                        key={`note-${node.id}-${mapping.topicId}`}
+                        x1={secondaryTopic.point.x}
+                        y1={secondaryTopic.point.y}
+                        x2={node.point.x}
+                        y2={node.point.y}
+                        className="knowledge-note-line-secondary"
+                      />,
+                    )
+                  }
+                  return lines
                 })}
               </svg>
 

@@ -130,7 +130,6 @@ export default async function MindmapPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-mist px-3 py-1.5 font-mono text-[10px] font-semibold text-study">23:50 KST · ONE AI CALL</span>
           {configured && (
             <span className="rounded-full border border-hairline bg-white px-3 py-1.5 font-mono text-[10px] font-semibold text-ink/42">
               {topics.length} TOPICS
