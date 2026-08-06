@@ -76,4 +76,21 @@ describe('buildDigest', () => {
     expect(callAi).toHaveBeenCalledTimes(2)
     expect(r.status).toBe('failed')
   })
+
+  // AI 호출이 예외를 던져도 buildDigest 밖으로 나가면 안 된다. 나가면 라우트가
+  // 본문 없는 500을 돌려주고, 브라우저의 res.json()이 SyntaxError로 죽는다.
+  it('AI 호출이 예외를 던지면 failed로 끝나고 메시지를 담는다', async () => {
+    const callAi = vi.fn().mockRejectedValue(new Error('환경변수 GEMINI_API_KEY 가 설정되지 않았습니다'))
+    const r = await buildDigest('2026-08-05', 노트1개, callAi)
+    expect(r.status).toBe('failed')
+    if (r.status === 'failed') {
+      expect(r.errorMessage).toContain('GEMINI_API_KEY')
+    }
+  })
+
+  it('예외를 던질 때는 재시도하지 않는다', async () => {
+    const callAi = vi.fn().mockRejectedValue(new Error('실패'))
+    await buildDigest('2026-08-05', 노트1개, callAi)
+    expect(callAi).toHaveBeenCalledTimes(1)
+  })
 })
