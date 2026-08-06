@@ -107,3 +107,14 @@ export function assembleDigestMarkdown(input: {
 export function digestFileName(date: string): string {
   return `${date}-스터디정리.md`
 }
+
+/**
+ * 재생성 실패 시 status만 'failed'로 바뀌고 body_md는 그대로 남는다(§8.2).
+ * 따라서 "정리본이 있는가"는 status가 아니라 body_md로 판단해야, 이전에
+ * 성공한 정리본이 재생성 실패로 화면에서 사라지는 문제를 막을 수 있다.
+ */
+export function hasDigestContent<T extends { body_md: string | null }>(
+  digest: T | null | undefined,
+): digest is T & { body_md: string } {
+  return Boolean(digest?.body_md)
+}

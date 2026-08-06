@@ -4,7 +4,23 @@ import {
   filterValidConnections,
   assembleDigestMarkdown,
   digestFileName,
+  hasDigestContent,
 } from '@/lib/digest'
+
+describe('hasDigestContent', () => {
+  it('body_md가 있으면 status가 failed여도 true를 반환한다 (재생성 실패로 status만 failed가 된 경우)', () => {
+    expect(hasDigestContent({ body_md: '# 이전 정리본' })).toBe(true)
+  })
+
+  it('body_md가 없으면 false를 반환한다', () => {
+    expect(hasDigestContent({ body_md: null })).toBe(false)
+  })
+
+  it('digest 자체가 없으면 false를 반환한다', () => {
+    expect(hasDigestContent(null)).toBe(false)
+    expect(hasDigestContent(undefined)).toBe(false)
+  })
+})
 
 describe('parseAiResponse', () => {
   const 정상 = {

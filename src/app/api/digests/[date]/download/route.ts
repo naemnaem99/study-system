@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentProfile } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { digestFileName } from '@/lib/digest'
+import { digestFileName, hasDigestContent } from '@/lib/digest'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ date: string }> }) {
   const profile = await getCurrentProfile()
@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ date: s
     .eq('digest_date', date)
     .maybeSingle()
 
-  if (!digest || digest.status !== 'done' || !digest.body_md) {
+  if (!hasDigestContent(digest)) {
     return NextResponse.json({ error: '정리본을 찾을 수 없습니다' }, { status: 404 })
   }
 
