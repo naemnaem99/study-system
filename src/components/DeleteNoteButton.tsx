@@ -13,8 +13,8 @@ export function DeleteNoteButton({ noteId }: { noteId: string }) {
       }}
     >
       <input type="hidden" name="id" value={noteId} />
-      <button type="submit" className="rounded border px-3 py-1 text-red-600">
-        삭제
+      <button type="submit" className="inline-flex min-h-10 items-center rounded-xl px-4 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 hover:text-red-700">
+        기록 삭제
       </button>
     </form>
   )
