@@ -23,15 +23,19 @@ export default async function EditNotePage({ params }: Props) {
   if (note.author_id !== profile.id) redirect(`/notes/${id}`)
 
   return (
-    <>
-      <h1 className="mb-6 text-xl font-bold">노트 수정</h1>
+    <section className="page-enter">
+      <div className="mb-10 border-b border-hairline pb-7">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-study">Edit study note</p>
+        <h1 className="font-display mt-3 text-3xl font-bold text-ink sm:text-4xl">스터디 기록 수정</h1>
+      </div>
       <NoteForm
         action={updateNote}
         initial={{ title: note.title, bodyMd: note.body_md, studiedOn: note.studied_on }}
         submitLabel="저장"
         defaultStudiedOn={todayInSeoul()}
         hiddenFields={{ id: note.id }}
+        author={{ displayName: profile.display_name, slug: profile.slug }}
       />
-    </>
+    </section>
   )
 }
