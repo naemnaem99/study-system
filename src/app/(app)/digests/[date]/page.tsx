@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Markdown } from '@/components/Markdown'
-import { RegenerateDigestButton } from '@/components/RegenerateDigestButton'
+import { GenerateDigestButton } from '@/components/GenerateDigestButton'
 
 type Props = { params: Promise<{ date: string }> }
 
@@ -20,7 +20,7 @@ export default async function DigestDetailPage({ params }: Props) {
       <>
         <h1 className="mb-6 text-xl font-bold">{date}</h1>
         <p className="mb-6 text-sm text-gray-500">아직 생성되지 않았습니다.</p>
-        <RegenerateDigestButton date={date} />
+        <GenerateDigestButton date={date} />
       </>
     )
   }
@@ -32,7 +32,7 @@ export default async function DigestDetailPage({ params }: Props) {
         <p className="mb-6 text-sm text-gray-500">
           {digest.status === 'failed' ? '생성에 실패했습니다.' : '생성 중입니다.'}
         </p>
-        <RegenerateDigestButton date={date} />
+        <GenerateDigestButton date={date} />
       </>
     )
   }
@@ -45,7 +45,7 @@ export default async function DigestDetailPage({ params }: Props) {
           <a href={`/api/digests/${date}/download`} className="rounded border px-3 py-1">
             .md 다운로드
           </a>
-          <RegenerateDigestButton date={date} />
+          <GenerateDigestButton date={date} />
         </div>
       </div>
       <Markdown>{digest.body_md}</Markdown>

@@ -1,7 +1,12 @@
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { todayInSeoul } from '@/lib/date'
+import { GenerateDigestButton } from '@/components/GenerateDigestButton'
 
 export default async function DigestsPage() {
+  // 대상 날짜는 서버에서 KST로 정한다. 클라이언트 시계를 쓰면 시간대에 따라
+  // 조용히 다른 날짜의 정리본을 만들게 된다(설계 §8.1).
+  const 오늘 = todayInSeoul()
   const supabase = await createSupabaseServerClient()
   const { data: digests } = await supabase
     .from('digests')
@@ -26,7 +31,10 @@ export default async function DigestsPage() {
 
   return (
     <>
-      <h1 className="mb-6 text-xl font-bold">정리본</h1>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-xl font-bold">정리본</h1>
+        <GenerateDigestButton date={오늘} label="오늘 정리본 만들기" afterSuccess="navigate" />
+      </div>
       {완료목록.length === 0 ? (
         <p className="text-sm text-gray-500">아직 생성된 정리본이 없습니다.</p>
       ) : (
