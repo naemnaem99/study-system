@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Markdown } from '@/components/Markdown'
-import { RegenerateDigestButton } from '@/components/RegenerateDigestButton'
+import { GenerateDigestButton } from '@/components/GenerateDigestButton'
 
 type Props = { params: Promise<{ date: string }> }
 
@@ -18,7 +18,13 @@ export default async function DigestDetailPage({ params }: Props) {
   // 설계 §10: 크론 미실행 시 "아직 생성되지 않음 — 지금 생성" 버튼을 보인다.
   if (!digest) {
     return (
-      <DigestStatus date={date} title="아직 정리본이 없습니다" description="이 날짜의 기록이 있다면 지금 정리본을 생성할 수 있습니다." />
+      <DigestStatus
+        date={date}
+        title="아직 정리본이 없습니다"
+        description="이 날짜의 기록이 있다면 지금 정리본을 생성할 수 있습니다."
+        actionLabel="지금 생성"
+        confirmMessage="AI를 사용해 이 날짜의 정리본을 지금 만들까요? 무료 API 사용량이 차감될 수 있습니다."
+      />
     )
   }
 
@@ -49,7 +55,7 @@ export default async function DigestDetailPage({ params }: Props) {
           <a href={`/api/digests/${date}/download`} className="inline-flex min-h-10 items-center rounded-xl border border-hairline bg-white px-4 text-xs font-bold text-ink transition-all hover:-translate-y-0.5 hover:border-study/35 hover:text-study hover:shadow-[0_10px_24px_rgba(25,53,42,0.08)]">
             .md 내려받기
           </a>
-          <RegenerateDigestButton date={date} />
+          <GenerateDigestButton date={date} />
         </div>
       </header>
       <div className="grid gap-8 pt-8 lg:grid-cols-[130px_minmax(0,780px)] lg:gap-10">
@@ -63,7 +69,19 @@ export default async function DigestDetailPage({ params }: Props) {
   )
 }
 
-function DigestStatus({ date, title, description }: { date: string; title: string; description: string }) {
+function DigestStatus({
+  date,
+  title,
+  description,
+  actionLabel,
+  confirmMessage,
+}: {
+  date: string
+  title: string
+  description: string
+  actionLabel?: string
+  confirmMessage?: string
+}) {
   return (
     <section className="page-enter">
       <Link href="/digests" className="text-xs font-semibold text-ink/42 transition-colors hover:text-study">← 정리본 목록</Link>
@@ -73,7 +91,9 @@ function DigestStatus({ date, title, description }: { date: string; title: strin
           <p className="mt-6 font-mono text-[10px] text-study">{date}</p>
           <h1 className="font-display mt-2 text-2xl font-bold text-ink">{title}</h1>
           <p className="mt-3 text-sm leading-6 text-ink/50">{description}</p>
-          <div className="mt-7 flex justify-center"><RegenerateDigestButton date={date} /></div>
+          <div className="mt-7 flex justify-center">
+            <GenerateDigestButton date={date} label={actionLabel} confirmMessage={confirmMessage} />
+          </div>
         </div>
       </div>
     </section>

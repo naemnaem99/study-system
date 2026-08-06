@@ -1,8 +1,13 @@
 import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { todayInSeoul } from '@/lib/date'
+import { GenerateDigestButton } from '@/components/GenerateDigestButton'
 
 export default async function DigestsPage() {
+  // 대상 날짜는 서버에서 KST로 정한다. 클라이언트 시계를 쓰면 시간대에 따라
+  // 조용히 다른 날짜의 정리본을 만들게 된다(설계 §8.1).
+  const 오늘 = todayInSeoul()
   const supabase = await createSupabaseServerClient()
   const { data: digests } = await supabase
     .from('digests')
@@ -33,7 +38,15 @@ export default async function DigestsPage() {
           <h1 className="font-display mt-3 text-3xl font-bold text-ink sm:text-4xl">팀 정리본</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-ink/52">매일 23:50, 팀원이 남긴 기록을 날짜별 한 편의 문서로 정리합니다.</p>
         </div>
-        <span className="rounded-full bg-mist px-3 py-1.5 font-mono text-[10px] font-semibold text-study">23:50 KST · AUTO</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-full bg-mist px-3 py-1.5 font-mono text-[10px] font-semibold text-study">23:50 KST · AUTO</span>
+          <GenerateDigestButton
+            date={오늘}
+            label="오늘 정리본 만들기"
+            afterSuccess="navigate"
+            confirmMessage="AI를 사용해 오늘 정리본을 지금 만들까요? 무료 API 사용량이 차감될 수 있습니다."
+          />
+        </div>
       </header>
       {완료목록.length === 0 ? (
         <div className="grid min-h-[320px] place-items-center rounded-[24px] border border-dashed border-hairline bg-mist/35 px-6 text-center">

@@ -12,6 +12,24 @@ export type BuildDigestResult =
   | { status: 'done'; bodyMd: string; hasConnections: boolean }
   | { status: 'failed'; errorMessage: string }
 
+type 호출결과 = { ok: true; value: unknown } | { ok: false; message: string }
+
+/**
+ * AI 호출의 예외를 값으로 바꾼다. 예외가 buildDigest 밖으로 나가면 라우트
+ * 핸들러까지 올라가 본문 없는 500이 되고, 브라우저는 원인 대신
+ * 'Unexpected end of JSON input'만 보게 된다.
+ */
+async function 안전호출(
+  callAi: (notes: NoteForDigest[]) => Promise<unknown>,
+  notes: NoteForDigest[],
+): Promise<호출결과> {
+  try {
+    return { ok: true, value: await callAi(notes) }
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : 'AI 호출에 실패했습니다' }
+  }
+}
+
 /**
  * §8.2 처리 순서 중 AI 호출부터 마크다운 조립까지. DB에는 접근하지 않는다 —
  * 호출자가 notes를 조회해 넘기고, 결과를 저장하는 것도 호출자의 몫이다.
@@ -26,10 +44,20 @@ export async function buildDigest(
     return { status: 'skipped' }
   }
 
-  let 파싱결과 = parseAiResponse(await callAi(notes))
+  // 재시도는 §8.2 Step 5대로 스키마 검증 실패에만 적용한다. 예외는 재시도하지
+  // 않는다 — 키 누락 같은 원인은 다시 불러도 같은 결과고 대기만 두 배가 된다.
+  const 첫호출 = await 안전호출(callAi, notes)
+  if (!첫호출.ok) {
+    return { status: 'failed', errorMessage: 첫호출.message }
+  }
+
+  let 파싱결과 = parseAiResponse(첫호출.value)
   if (!파싱결과.ok) {
-    // §8.2 Step 5: 스키마 검증 실패 시 1회 재시도.
-    파싱결과 = parseAiResponse(await callAi(notes))
+    const 재호출 = await 안전호출(callAi, notes)
+    if (!재호출.ok) {
+      return { status: 'failed', errorMessage: 재호출.message }
+    }
+    파싱결과 = parseAiResponse(재호출.value)
   }
   if (!파싱결과.ok) {
     return { status: 'failed', errorMessage: 파싱결과.message }
