@@ -24,5 +24,5 @@ export async function POST(_req: Request, { params }: { params: Promise<{ date: 
     return NextResponse.json({ error: result.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, skipped: result.skipped })
+  return NextResponse.json({ ok: true, skipped: result.skipped, reason: result.reason })
 }

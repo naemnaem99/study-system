@@ -109,7 +109,7 @@ export function Nav({ profiles, current }: { profiles: Profile[]; current: Profi
           <Link href="/mindmap" onClick={() => set모바일열림(false)} className={항목클래스(활성('/mindmap'))}>
             <Icon name="graph" />
             스터디 마인드맵
-            <span className="ml-auto rounded-full bg-mist px-2 py-0.5 font-mono text-[9px] font-medium text-study">설계 중</span>
+            <span className="ml-auto rounded-full bg-mist px-2 py-0.5 font-mono text-[9px] font-medium text-study">23:50</span>
           </Link>
         </nav>
 

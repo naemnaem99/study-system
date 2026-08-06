@@ -61,20 +61,10 @@ describe('buildDigest', () => {
     }
   })
 
-  it('스키마가 깨지면 1회 재시도하고, 재시도가 성공하면 정상 처리한다', async () => {
-    const callAi = vi
-      .fn()
-      .mockResolvedValueOnce({ 이상한: '응답' })
-      .mockResolvedValueOnce(정상응답())
-    const r = await buildDigest('2026-08-05', 노트1개, callAi)
-    expect(callAi).toHaveBeenCalledTimes(2)
-    expect(r.status).toBe('done')
-  })
-
-  it('재시도까지 스키마가 깨지면 failed로 끝난다', async () => {
+  it('스키마가 깨져도 무료 할당량 보호를 위해 자동 재호출하지 않는다', async () => {
     const callAi = vi.fn().mockResolvedValue({ 이상한: '응답' })
     const r = await buildDigest('2026-08-05', 노트1개, callAi)
-    expect(callAi).toHaveBeenCalledTimes(2)
+    expect(callAi).toHaveBeenCalledTimes(1)
     expect(r.status).toBe('failed')
   })
 

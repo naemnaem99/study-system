@@ -245,8 +245,35 @@ Nuclino의 빠르고 조용한 작업 화면을 참고하되, 빨간색 대신 `
 2. 노트가 바뀐 경우 버튼 이름은 `변경된 노트 반영`으로 표시한다.
 3. 동일 날짜의 동시 요청을 잠근다.
 4. 실패 시 마지막 성공 정리본과 그래프를 유지한다.
-5. API 한도 초과 시 새 노트를 `미분류`에 두고 다음 자동 실행에서 재시도한다.
-6. 기존 주제 id를 우선 선택하고, 새 주제는 검토 상태로 제안만 한다.
+5. API 또는 응답 검증 실패 시 자동으로 추가 호출하지 않는다.
+6. 기존 주제를 우선 재사용하고, 불확실한 결과는 잘못 연결하지 않고 `미분류`로 보관한다.
+
+### 6.1 현재 AI 분류 기준
+
+AI는 당일 네 명의 학습 기록과 기존 주제 목록을 함께 읽고, 기록마다 핵심 주제를 최대 3개까지 제안한다. 사람의 승인 단계는 없으며 AI 제안을 서버가 다시 검증한 결과로 자동 확정한다.
+
+- AI는 분류마다 신뢰도, 분류 이유, 기록 원문에서 그대로 인용한 근거 문장을 반환한다.
+- 기존 주제는 신뢰도 `0.80` 이상, 새 주제는 `0.85` 이상이며 원문 근거가 확인될 때 `validated`로 자동 확정한다.
+- 신뢰도 `0.60` 이상이지만 자동 확정 기준보다 낮으면 `provisional`로 보관한다.
+- 신뢰도 `0.60` 미만이거나 인용문이 원문과 일치하지 않으면 해당 분류를 버리고 기록을 `미분류`에 둔다.
+- 새 주제는 처음에는 `suggested` 상태이며, 서로 다른 기록 2개 이상에서 검증되면 `active`로 자동 승격한다.
+- 주제 관계선은 신뢰도 `0.85` 이상이고 양쪽 주제를 뒷받침하는 검증된 기록 ID가 있을 때만 만든다.
+
+따라서 AI의 신뢰도 숫자만 믿는 방식이 아니라, 실제 원문 근거와 서버 규칙을 모두 통과한 연결만 마인드맵에 반영한다.
+
+### 6.2 기술적 구현 방안
+
+1. Vercel Cron이 매일 `23:50 KST`에 정리본 파이프라인을 한 번 호출한다.
+2. 서버는 당일 학습 기록의 ID·작성자·제목·본문과 기존 주제 최대 80개를 Gemini에 전달한다.
+3. Gemini는 JSON Schema에 맞춰 `note_topics`, `topic_relations`, `topic_updates`를 정리본과 함께 한 번의 응답으로 반환한다.
+4. 서버 파서는 알 수 없는 기록 ID와 주제 slug, 중복 연결, 기록당 3개를 넘는 주제를 제거한다.
+5. 인용 근거를 유니코드·공백 정규화한 뒤 해당 기록 본문에 실제 포함되는지 검사하며, 공백 제외 12자 미만의 근거는 인정하지 않는다.
+6. 신뢰도 임계값과 관계 근거 조건을 적용한 뒤 검증 결과를 Supabase RPC로 원자적으로 저장한다.
+7. 분류 규칙 버전(`classifier_version`)과 입력 해시를 저장해 규칙 변경 시에는 재분류하고, 동일 입력·동일 버전은 API 호출 없이 건너뛴다.
+8. AI 쓰기는 service role만 수행하고, 등록된 구성원의 조회는 Supabase RLS로 제한한다.
+9. 실패한 실행은 기존 성공 데이터를 덮어쓰지 않으며 자동 재시도하지 않는다.
+
+세부 응답 계약과 검증 규칙은 `docs/2026-08-06-ai-only-classification-validation.md`를 기준 문서로 사용한다.
 
 ## 7. 데이터 변경안
 
@@ -299,8 +326,11 @@ note_topics
   topic_id FK
   confidence
   reason
+  evidence_quote
+  evidence_verified
   source
-  review_status
+  validation_status
+  classifier_version
 
 topic_relations
   source_topic_id FK
@@ -308,6 +338,13 @@ topic_relations
   relation_type
   confidence
   evidence_count
+  evidence_verified
+  classifier_version
+
+topic_relation_evidence
+  source_topic_id FK
+  target_topic_id FK
+  note_id FK
 ```
 
 모든 신규 테이블에 RLS를 적용한다. 등록된 구성원만 읽고 댓글을 작성할 수 있으며, 댓글 작성자는 자기 댓글만 수정·삭제한다. AI 결과 쓰기는 service role만 허용한다.

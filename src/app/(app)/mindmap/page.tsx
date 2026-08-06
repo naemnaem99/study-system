@@ -1,38 +1,153 @@
-export default function MindmapPage() {
+import { getAllProfiles } from '@/lib/auth'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import {
+  MindmapExplorer,
+  type MindmapGeneration,
+  type MindmapMapping,
+  type MindmapNote,
+  type MindmapProfile,
+  type MindmapRelation,
+  type MindmapTopic,
+} from '@/components/MindmapExplorer'
+
+type NestedNote = {
+  id: string
+  title: string
+  body_md: string
+  studied_on: string
+  updated_at: string
+  profiles: {
+    id: string
+    display_name: string
+    slug: string
+    avatar_url: string | null
+  }
+}
+
+export default async function MindmapPage() {
+  const supabase = await createSupabaseServerClient()
+  const [profiles, topicsResult, mappingsResult, relationsResult, generationResult] = await Promise.all([
+    getAllProfiles(),
+    supabase
+      .from('topics')
+      .select('id, name, slug, parent_id, summary_md, status, updated_at')
+      .neq('status', 'archived')
+      .order('updated_at', { ascending: false }),
+    supabase
+      .from('note_topics')
+      .select('note_id, topic_id, confidence, reason, evidence_quote, evidence_verified, validation_status, source, notes(id, title, body_md, studied_on, updated_at, profiles(id, display_name, slug, avatar_url))'),
+    supabase
+      .from('topic_relations')
+      .select('source_topic_id, target_topic_id, relation_type, confidence, evidence_count, last_seen_on')
+      .eq('evidence_verified', true)
+      .order('last_seen_on', { ascending: false }),
+    supabase
+      .from('knowledge_generations')
+      .select('generation_date, status, completed_at')
+      .order('generation_date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  const configured = !topicsResult.error && !mappingsResult.error && !relationsResult.error && !generationResult.error
+
+  const mapProfiles: MindmapProfile[] = profiles.map((profile) => ({
+    id: profile.id,
+    displayName: profile.display_name,
+    slug: profile.slug,
+    avatarUrl: profile.avatar_url,
+  }))
+
+  const topics: MindmapTopic[] = (topicsResult.data ?? []).map((topic) => ({
+    id: topic.id,
+    name: topic.name,
+    slug: topic.slug,
+    parentId: topic.parent_id,
+    summaryMd: topic.summary_md,
+    status: topic.status as MindmapTopic['status'],
+    updatedAt: topic.updated_at,
+  }))
+
+  const notesById = new Map<string, MindmapNote>()
+  const mappings: MindmapMapping[] = []
+  for (const row of mappingsResult.data ?? []) {
+    const note = row.notes as unknown as NestedNote | null
+    if (!note?.profiles) continue
+
+    if (!notesById.has(note.id)) {
+      notesById.set(note.id, {
+        id: note.id,
+        title: note.title,
+        bodyMd: note.body_md,
+        studiedOn: note.studied_on,
+        updatedAt: note.updated_at,
+        author: {
+          id: note.profiles.id,
+          displayName: note.profiles.display_name,
+          slug: note.profiles.slug,
+          avatarUrl: note.profiles.avatar_url,
+        },
+      })
+    }
+
+    mappings.push({
+      noteId: row.note_id,
+      topicId: row.topic_id,
+      confidence: Number(row.confidence),
+      reason: row.reason,
+      evidenceQuote: row.evidence_quote,
+      evidenceVerified: row.evidence_verified,
+      source: row.source as MindmapMapping['source'],
+      validationStatus: row.validation_status as MindmapMapping['validationStatus'],
+    })
+  }
+
+  const relations: MindmapRelation[] = (relationsResult.data ?? []).map((relation) => ({
+    sourceTopicId: relation.source_topic_id,
+    targetTopicId: relation.target_topic_id,
+    relationType: relation.relation_type as MindmapRelation['relationType'],
+    confidence: Number(relation.confidence),
+    evidenceCount: relation.evidence_count,
+    lastSeenOn: relation.last_seen_on,
+  }))
+
+  const latestGeneration: MindmapGeneration | null = generationResult.data
+    ? {
+        generationDate: generationResult.data.generation_date,
+        status: generationResult.data.status as MindmapGeneration['status'],
+        completedAt: generationResult.data.completed_at,
+      }
+    : null
+
   return (
     <section className="page-enter">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-5 border-b border-hairline pb-7">
+      <header className="mb-7 flex flex-wrap items-end justify-between gap-5 border-b border-hairline pb-7">
         <div>
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-study">Knowledge map</p>
           <h1 className="font-display mt-3 text-3xl font-bold text-ink sm:text-4xl">스터디 마인드맵</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/60">
-            매일 23:50 정리본과 함께 분류된 학습 주제를 그래프로 탐색하는 화면입니다.
+            팀원의 기록을 주제별로 연결해, 배움이 어디에서 만나고 이어지는지 살펴봅니다.
           </p>
         </div>
-        <span className="rounded-full bg-mist px-3 py-1.5 font-mono text-[10px] font-semibold text-study">DATA MODEL NEXT</span>
-      </div>
-
-      <div className="mb-4 flex items-center gap-1 border-b border-hairline text-xs font-semibold text-ink/45">
-        <span className="border-b-2 border-study px-4 py-3 text-study">Graph</span>
-        <span className="px-4 py-3">List</span>
-        <span className="px-4 py-3">Recent</span>
-      </div>
-
-      <div className="relative grid min-h-[560px] place-items-center overflow-hidden rounded-[24px] border border-hairline bg-[radial-gradient(circle_at_center,#f7fbf8_0%,#edf6f1_72%,#e8f2ec_100%)] px-6 text-center">
-        <div className="absolute inset-0 opacity-35 [background-image:radial-gradient(#74b892_1px,transparent_1px)] [background-size:28px_28px]" />
-        <div className="absolute left-[14%] top-[24%] size-2 rounded-full bg-leaf shadow-[0_0_0_8px_rgba(116,184,146,0.13)]" />
-        <div className="absolute right-[18%] top-[20%] size-3 rounded-full bg-study/70 shadow-[0_0_0_10px_rgba(47,125,90,0.1)]" />
-        <div className="absolute bottom-[20%] left-[23%] size-2.5 rounded-full bg-study/50 shadow-[0_0_0_8px_rgba(47,125,90,0.08)]" />
-        <div className="relative z-10 max-w-md">
-          <div className="relative mx-auto mb-9 grid size-24 place-items-center rounded-full bg-study text-sm font-bold text-white shadow-[0_16px_40px_rgba(47,125,90,0.2)]">
-            Study Grove
-          </div>
-          <h2 className="font-display text-2xl font-bold text-ink">지식의 연결을 담을 화면 골격입니다</h2>
-          <p className="mt-3 text-sm leading-6 text-ink/52">
-            AI 주제 분류 데이터가 준비되면 주변 점들이 실제 주제 노드가 되고, 선택한 기록이 오른쪽 상세 영역에 열립니다.
-          </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-mist px-3 py-1.5 font-mono text-[10px] font-semibold text-study">23:50 KST · ONE AI CALL</span>
+          {configured && (
+            <span className="rounded-full border border-hairline bg-white px-3 py-1.5 font-mono text-[10px] font-semibold text-ink/42">
+              {topics.length} TOPICS
+            </span>
+          )}
         </div>
-      </div>
+      </header>
+
+      <MindmapExplorer
+        configured={configured}
+        profiles={mapProfiles}
+        topics={topics}
+        notes={[...notesById.values()]}
+        mappings={mappings}
+        relations={relations}
+        latestGeneration={latestGeneration}
+      />
     </section>
   )
 }
