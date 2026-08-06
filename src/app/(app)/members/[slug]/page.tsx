@@ -73,7 +73,7 @@ export default async function MemberPage({ params, searchParams }: Props) {
           <div>
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--member)]">{theme.label} · {profile.slug}</p>
             <div className="mt-5 flex items-center gap-5">
-              <span className="growth-ring relative grid size-14 shrink-0 place-items-center rounded-full bg-[color:var(--member)] text-lg font-bold text-white shadow-[0_12px_30px_rgba(25,53,42,0.13)]">
+              <span className="relative grid size-14 shrink-0 place-items-center rounded-full bg-[color:var(--member)] text-lg font-bold text-white shadow-[0_12px_30px_rgba(25,53,42,0.13)]">
                 {profile.display_name.slice(0, 1)}
               </span>
               <div>

@@ -115,7 +115,7 @@ export function Nav({ profiles, current }: { profiles: Profile[]; current: Profi
 
         <div className="mt-auto border-t border-hairline pt-5">
           <div className="mb-3 flex items-center gap-3 px-2">
-            <span className="growth-ring relative grid size-9 place-items-center rounded-full bg-mist text-xs font-bold text-study">
+            <span className="relative grid size-9 place-items-center rounded-full bg-mist text-xs font-bold text-study">
               {current.display_name.slice(0, 1)}
             </span>
             <div className="min-w-0">

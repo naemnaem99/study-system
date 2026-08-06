@@ -11,7 +11,7 @@ export default async function DigestsPage() {
   const supabase = await createSupabaseServerClient()
   const { data: digests } = await supabase
     .from('digests')
-    .select('digest_date, status')
+    .select('digest_date, status, one_liner')
     .order('digest_date', { ascending: false })
 
   const 완료목록 = (digests ?? []).filter((d) => d.status === 'done')
@@ -36,7 +36,7 @@ export default async function DigestsPage() {
         <div>
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-study">Daily digest</p>
           <h1 className="font-display mt-3 text-3xl font-bold text-ink sm:text-4xl">팀 정리본</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-ink/52">매일 23:50, 팀원이 남긴 기록을 날짜별 한 편의 문서로 정리합니다.</p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-ink/52">팀원이 남긴 기록을 날짜별 한 편의 문서로 정리합니다.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="rounded-full bg-mist px-3 py-1.5 font-mono text-[10px] font-semibold text-study">23:50 KST · AUTO</span>
@@ -65,7 +65,7 @@ export default async function DigestsPage() {
               <Link href={`/digests/${digest.digest_date}`} className="group grid gap-4 rounded-2xl px-3 py-6 transition-all duration-200 hover:bg-mist/70 sm:grid-cols-[145px_1fr_auto] sm:items-center sm:px-5">
                 <span className="font-mono text-xs font-semibold text-study">{digest.digest_date}</span>
                 <div>
-                  <p className="font-display text-lg font-bold text-ink transition-colors group-hover:text-study">하루의 스터디 정리</p>
+                  <p className="font-display text-lg font-bold text-ink transition-colors group-hover:text-study">{digest.one_liner ?? '하루의 스터디 정리'}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {participants.length > 0 ? participants.map((name) => (
                       <span key={name} className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-ink/48 ring-1 ring-hairline">{name}</span>

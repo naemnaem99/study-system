@@ -9,6 +9,8 @@
   --mist: #eff6f2;
   --paper: #fbfcfb;
   --hairline: #d8e5dd;
+  --grass-1: #d7ecdf;
+  --grass-2: #a3d3b6;
   --soft-shadow: 0 18px 50px rgba(25, 53, 42, 0.08);
 }
 
@@ -21,6 +23,8 @@
   --color-mist: #eff6f2;
   --color-paper: #fbfcfb;
   --color-hairline: #d8e5dd;
+  --color-grass-1: #d7ecdf;
+  --color-grass-2: #a3d3b6;
   --font-sans: var(--font-noto-sans-kr);
   --font-display: var(--font-noto-serif-kr);
   --font-mono: var(--font-geist-mono);
@@ -61,27 +65,12 @@ button, input, textarea { font: inherit; }
   animation-delay: calc(var(--item-index, 0) * 45ms + 90ms);
 }
 
-.growth-ring::before,
-.growth-ring::after {
-  content: "";
-  position: absolute;
-  inset: -10px;
-  border: 1px solid color-mix(in srgb, var(--member, var(--study)) 28%, transparent);
-  border-radius: 999px;
-  transition: transform 320ms cubic-bezier(.22, 1, .36, 1), opacity 320ms ease;
-}
-
-.growth-ring::after { inset: -19px; opacity: .55; }
-
 @media (hover: hover) {
   .surface-lift:hover {
     transform: translateY(-4px);
     border-color: color-mix(in srgb, var(--study) 30%, var(--hairline));
     box-shadow: var(--soft-shadow);
   }
-
-  .growth-ring:hover::before { transform: scale(1.08) rotate(8deg); }
-  .growth-ring:hover::after { transform: scale(1.13) rotate(-8deg); opacity: .8; }
 }
 
 ::selection { background: #cce8d7; color: #19352a; }
