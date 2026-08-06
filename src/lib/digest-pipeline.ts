@@ -125,6 +125,7 @@ export async function runDigestPipeline(date: string): Promise<PipelineResult> {
     status: 'done',
     body_md: digestResult.bodyMd,
     has_connections: digestResult.hasConnections,
+    one_liner: digestResult.oneLiner,
     model: KNOWLEDGE_MODEL,
     generated_at: new Date().toISOString(),
     error_message: null,

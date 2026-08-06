@@ -32,6 +32,7 @@ describe('buildDigest', () => {
     if (r.status === 'done') {
       expect(r.hasConnections).toBe(false)
       expect(r.bodyMd).not.toContain('겹치는 지점')
+      expect(r.oneLiner).toBe('오늘 배운 것')
     }
   })
 

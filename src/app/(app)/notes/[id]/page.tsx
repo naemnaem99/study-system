@@ -34,7 +34,7 @@ export default async function NotePage({ params }: Props) {
       <div className="grid gap-8 lg:grid-cols-[160px_minmax(0,780px)] lg:gap-12">
         <aside className="lg:pt-2">
           <div className="flex items-center gap-3 lg:block">
-            <span className="growth-ring relative grid size-11 place-items-center rounded-full bg-mist text-sm font-bold text-study">
+            <span className="relative grid size-11 place-items-center rounded-full bg-mist text-sm font-bold text-study">
               {author.display_name.slice(0, 1)}
             </span>
             <div className="lg:mt-5">

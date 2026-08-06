@@ -9,7 +9,7 @@ export type NoteForDigest = { authorSlug: string; authorName: string; title: str
 
 export type BuildDigestResult =
   | { status: 'skipped' }
-  | { status: 'done'; bodyMd: string; hasConnections: boolean }
+  | { status: 'done'; bodyMd: string; hasConnections: boolean; oneLiner: string }
   | { status: 'failed'; errorMessage: string }
 
 type 호출결과 = { ok: true; value: unknown } | { ok: false; message: string }
@@ -60,7 +60,12 @@ export function buildDigestFromResponse(
     })),
   })
 
-  return { status: 'done', bodyMd, hasConnections: 유효연결.length > 0 }
+  return {
+    status: 'done',
+    bodyMd,
+    hasConnections: 유효연결.length > 0,
+    oneLiner: 응답.one_liner,
+  }
 }
 
 /**

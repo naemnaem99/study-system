@@ -48,7 +48,7 @@ export function NoteForm({ action, initial, submitLabel, defaultStudiedOn, hidde
         ))}
 
       <div className="surface-lift flex flex-wrap items-center gap-4 rounded-2xl border border-leaf/35 bg-mist/75 px-5 py-4 sm:px-6">
-        <span className="growth-ring relative grid size-11 shrink-0 place-items-center rounded-full bg-study text-sm font-bold text-white">
+        <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-study text-sm font-bold text-white">
           {author.displayName.slice(0, 1)}
         </span>
         <div className="min-w-0">

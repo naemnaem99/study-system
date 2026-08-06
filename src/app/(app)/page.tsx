@@ -2,8 +2,9 @@ import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { getAllProfiles } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { todayInSeoul, weekdayIndexOf } from '@/lib/date'
+import { todayInSeoul, weekdayIndexOf, recentDatesInSeoul } from '@/lib/date'
 import { StorysetTeam } from '@/components/StorysetTeam'
+import { GrassGraph } from '@/components/GrassGraph'
 
 const 요일 = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -17,6 +18,13 @@ export default async function HomePage() {
     .select('id, title, author_id')
     .eq('studied_on', 오늘)
 
+  const 최근12주 = recentDatesInSeoul(84)
+  const { data: 최근12주노트 } = await supabase
+    .from('notes')
+    .select('studied_on')
+    .gte('studied_on', 최근12주[0])
+    .lte('studied_on', 오늘)
+
   const { data: 최근정리본 } = await supabase
     .from('digests')
     .select('digest_date')
@@ -27,6 +35,11 @@ export default async function HomePage() {
 
   const 올린사람 = new Set((오늘노트 ?? []).map((n) => n.author_id))
   const 작성자맵 = new Map(profiles.map((profile) => [profile.id, profile]))
+  const 날짜별카운트 = new Map<string, number>()
+  for (const row of 최근12주노트 ?? []) {
+    날짜별카운트.set(row.studied_on, (날짜별카운트.get(row.studied_on) ?? 0) + 1)
+  }
+  const 잔디데이터 = 최근12주.map((date) => ({ date, count: 날짜별카운트.get(date) ?? 0 }))
   // 오늘은 이미 KST 기준 달력 날짜 문자열이므로, UTC 자정으로 파싱해 getUTCDay()로
   // 읽으면 시간대 변환 없이 그 날짜 자체의 요일을 얻는다.
   const 요일이름 = 요일[weekdayIndexOf(오늘)]
@@ -42,9 +55,7 @@ export default async function HomePage() {
               <span className="rounded-full bg-study px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white">Today&apos;s grove</span>
               <span className="font-mono text-xs text-ink/45">{오늘} · {요일이름}요일</span>
             </div>
-            <h1 className="font-display max-w-2xl text-[2.35rem] font-bold leading-[1.2] text-ink sm:text-5xl sm:leading-[1.18]">
-              오늘의 배움이<br className="hidden sm:block" /> 팀의 지식으로 자랍니다.
-            </h1>
+            <GrassGraph activity={잔디데이터} className="mt-1 max-w-[260px] sm:max-w-[300px]" />
             <p className="mt-5 max-w-xl text-sm leading-7 text-ink/58 sm:text-base">
               각자의 기록을 남기고, 서로의 학습 흐름이 연결되는 순간을 확인하세요.
             </p>
@@ -71,7 +82,7 @@ export default async function HomePage() {
               return (
                 <li key={profile.id} className="stagger-item" style={{ '--item-index': index } as CSSProperties}>
                   <Link href={`/members/${profile.slug}`} className={`surface-lift group flex min-h-[76px] items-center gap-4 rounded-2xl border px-4 ${올림 ? 'border-leaf/45 bg-white' : 'border-hairline bg-paper text-ink/55'}`}>
-                    <span className={`growth-ring relative grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold ${올림 ? 'bg-study text-white' : 'bg-mist text-ink/45'}`}>
+                    <span className={`relative grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold ${올림 ? 'bg-study text-white' : 'bg-mist text-ink/45'}`}>
                       {profile.display_name.slice(0, 1)}
                     </span>
                     <div>
