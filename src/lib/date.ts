@@ -21,3 +21,12 @@ export function todayInSeoul(now: Date = new Date()): string {
 export function weekdayIndexOf(dateStr: string): number {
   return new Date(`${dateStr}T00:00:00Z`).getUTCDay()
 }
+
+/** 오늘(KST)을 포함해 최근 N일의 KST 날짜 문자열을 오래된 날짜 → 오늘 순서로 반환한다. */
+export function recentDatesInSeoul(days: number, now: Date = new Date()): string[] {
+  const dates: string[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    dates.push(formatDateInSeoul(new Date(now.getTime() - i * 86_400_000)))
+  }
+  return dates
+}

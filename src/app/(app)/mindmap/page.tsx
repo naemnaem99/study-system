@@ -24,7 +24,7 @@ export default function MindmapPage() {
         <div className="absolute right-[18%] top-[20%] size-3 rounded-full bg-study/70 shadow-[0_0_0_10px_rgba(47,125,90,0.1)]" />
         <div className="absolute bottom-[20%] left-[23%] size-2.5 rounded-full bg-study/50 shadow-[0_0_0_8px_rgba(47,125,90,0.08)]" />
         <div className="relative z-10 max-w-md">
-          <div className="growth-ring relative mx-auto mb-9 grid size-24 place-items-center rounded-full bg-study text-sm font-bold text-white shadow-[0_16px_40px_rgba(47,125,90,0.2)]">
+          <div className="relative mx-auto mb-9 grid size-24 place-items-center rounded-full bg-study text-sm font-bold text-white shadow-[0_16px_40px_rgba(47,125,90,0.2)]">
             Study Grove
           </div>
           <h2 className="font-display text-2xl font-bold text-ink">지식의 연결을 담을 화면 골격입니다</h2>

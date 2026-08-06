@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDateInSeoul, todayInSeoul, weekdayIndexOf } from '@/lib/date'
+import { formatDateInSeoul, todayInSeoul, weekdayIndexOf, recentDatesInSeoul } from '@/lib/date'
 
 describe('formatDateInSeoul', () => {
   it('YYYY-MM-DD 형식으로 반환한다', () => {
@@ -43,5 +43,28 @@ describe('weekdayIndexOf', () => {
 
   it('2026-12-31 은 목요일이다', () => {
     expect(weekdayIndexOf('2026-12-31')).toBe(4)
+  })
+})
+
+describe('recentDatesInSeoul', () => {
+  it('요청한 일수만큼 날짜를 반환한다', () => {
+    expect(recentDatesInSeoul(30, new Date('2026-08-05T05:00:00Z'))).toHaveLength(30)
+  })
+
+  it('마지막 원소는 오늘(KST)이다', () => {
+    const now = new Date('2026-08-05T05:00:00Z')
+    const dates = recentDatesInSeoul(30, now)
+    expect(dates[dates.length - 1]).toBe(todayInSeoul(now))
+  })
+
+  it('오래된 날짜 → 오늘 순서로 오름차순 정렬된다', () => {
+    const dates = recentDatesInSeoul(7, new Date('2026-08-05T05:00:00Z'))
+    const sorted = [...dates].sort()
+    expect(dates).toEqual(sorted)
+  })
+
+  it('KST 자정 경계를 넘긴 시각(15:10 UTC)도 정확히 다음 날로 계산한다', () => {
+    const dates = recentDatesInSeoul(3, new Date('2026-08-05T15:10:00Z'))
+    expect(dates).toEqual(['2026-08-04', '2026-08-05', '2026-08-06'])
   })
 })
