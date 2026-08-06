@@ -35,10 +35,11 @@ export default async function MindmapPage() {
       .order('updated_at', { ascending: false }),
     supabase
       .from('note_topics')
-      .select('note_id, topic_id, confidence, reason, source, review_status, notes(id, title, body_md, studied_on, updated_at, profiles(id, display_name, slug, avatar_url))'),
+      .select('note_id, topic_id, confidence, reason, evidence_quote, evidence_verified, validation_status, source, notes(id, title, body_md, studied_on, updated_at, profiles(id, display_name, slug, avatar_url))'),
     supabase
       .from('topic_relations')
       .select('source_topic_id, target_topic_id, relation_type, confidence, evidence_count, last_seen_on')
+      .eq('evidence_verified', true)
       .order('last_seen_on', { ascending: false }),
     supabase
       .from('knowledge_generations')
@@ -94,8 +95,10 @@ export default async function MindmapPage() {
       topicId: row.topic_id,
       confidence: Number(row.confidence),
       reason: row.reason,
+      evidenceQuote: row.evidence_quote,
+      evidenceVerified: row.evidence_verified,
       source: row.source as MindmapMapping['source'],
-      reviewStatus: row.review_status as MindmapMapping['reviewStatus'],
+      validationStatus: row.validation_status as MindmapMapping['validationStatus'],
     })
   }
 

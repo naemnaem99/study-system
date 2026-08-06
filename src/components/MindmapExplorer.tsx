@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Markdown } from '@/components/Markdown'
 
 export type MindmapProfile = {
@@ -35,8 +35,10 @@ export type MindmapMapping = {
   topicId: string
   confidence: number
   reason: string
+  evidenceQuote: string
+  evidenceVerified: boolean
   source: 'ai' | 'manual' | 'fallback'
-  reviewStatus: 'pending' | 'approved' | 'rejected'
+  validationStatus: 'validated' | 'provisional' | 'unclassified'
 }
 
 export type MindmapRelation = {
@@ -54,7 +56,7 @@ export type MindmapGeneration = {
   completedAt: string | null
 }
 
-type ViewMode = 'graph' | 'list' | 'recent'
+type ViewMode = 'graph' | 'records'
 type Selection = { kind: 'topic' | 'note'; id: string }
 
 type Point = { x: number; y: number }
@@ -119,7 +121,7 @@ function graphLayout(
     const index = noteIndexByTopic.get(topicId) ?? 0
     noteIndexByTopic.set(topicId, index + 1)
     const angle = index * 1.72 + (anchor.x > 500 ? 0 : Math.PI)
-    const distance = 55 + (index % 2) * 22
+    const distance = 40 + (index % 2) * 14
     noteNodes.push({
       kind: 'note',
       id: note.id,
@@ -138,6 +140,12 @@ function statusCopy(status: MindmapTopic['status']) {
   if (status === 'unclassified') return '분류 대기'
   if (status === 'suggested') return 'AI 제안'
   return '팀 주제'
+}
+
+function validationCopy(status: MindmapMapping['validationStatus']) {
+  if (status === 'validated') return '자동 확정'
+  if (status === 'provisional') return '임시 연결'
+  return '미분류'
 }
 
 export function MindmapExplorer({
@@ -161,10 +169,8 @@ export function MindmapExplorer({
   const [member, setMember] = useState('all')
   const [period, setPeriod] = useState('all')
   const [topicFilter, setTopicFilter] = useState('all')
-  const [selection, setSelection] = useState<Selection | null>(
-    topics[0] ? { kind: 'topic', id: topics[0].id } : null,
-  )
-  const [mobileDetail, setMobileDetail] = useState(false)
+  const [selection, setSelection] = useState<Selection | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const periodStart = period === 'all' ? null : cutoffDate(Number(period))
@@ -194,21 +200,51 @@ export function MindmapExplorer({
     () => graphLayout(filtered.topics, filtered.notes, filtered.mappings),
     [filtered],
   )
+  const topicGroups = useMemo(() => filtered.topics
+    .map((topic) => ({
+      topic,
+      notes: filtered.notes
+        .filter((note) => filtered.mappings.some(
+          (mapping) => mapping.noteId === note.id && mapping.topicId === topic.id,
+        ))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    }))
+    .filter((group) => group.notes.length > 0)
+    .sort((a, b) => b.notes.length - a.notes.length || a.topic.name.localeCompare(b.topic.name, 'ko')),
+  [filtered])
   const graphNodeMap = new Map(graphNodes.map((node) => [`${node.kind}:${node.id}`, node]))
   const topicMap = new Map(topics.map((topic) => [topic.id, topic]))
   const noteMap = new Map(notes.map((note) => [note.id, note]))
-  const noteTopics = (noteId: string) => mappings
+  const noteTopicLinks = (noteId: string) => mappings
     .filter((mapping) => mapping.noteId === noteId)
-    .map((mapping) => topicMap.get(mapping.topicId))
-    .filter((topic): topic is MindmapTopic => Boolean(topic))
+    .map((mapping) => ({ mapping, topic: topicMap.get(mapping.topicId) }))
+    .filter((item): item is { mapping: MindmapMapping; topic: MindmapTopic } => Boolean(item.topic))
 
   function selectNode(next: Selection) {
     setSelection(next)
-    setMobileDetail(true)
+    setDetailOpen(true)
   }
+
+  function closeDetail() {
+    setDetailOpen(false)
+    setSelection(null)
+  }
+
+  useEffect(() => {
+    if (!detailOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setDetailOpen(false)
+        setSelection(null)
+      }
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [detailOpen])
 
   const selectedTopic = selection?.kind === 'topic' ? topicMap.get(selection.id) : null
   const selectedNote = selection?.kind === 'note' ? noteMap.get(selection.id) : null
+  const selectedNoteLinks = selectedNote ? noteTopicLinks(selectedNote.id) : []
   const selectedTopicNotes = selectedTopic
     ? filtered.notes.filter((note) => filtered.mappings.some(
         (mapping) => mapping.noteId === note.id && mapping.topicId === selectedTopic.id,
@@ -227,15 +263,21 @@ export function MindmapExplorer({
     : []
 
   const detailPanel = (
-    <aside className="h-full min-h-[520px] overflow-y-auto bg-white lg:border-l lg:border-hairline" aria-live="polite">
+    <aside
+      role="dialog"
+      aria-modal="true"
+      aria-label={selectedNote ? '학습 기록 상세' : selectedTopic ? '주제 상세' : '지식 상세'}
+      className={`knowledge-detail-panel fixed right-0 z-[70] w-full overflow-y-auto border-l border-hairline bg-white sm:right-5 sm:w-[min(760px,calc(100vw-80px))] sm:rounded-[24px] sm:border ${selectedNote ? 'inset-y-0 sm:inset-y-5' : 'inset-y-0 sm:bottom-auto sm:top-5 sm:max-h-[calc(100vh-40px)] sm:min-h-[420px]'}`}
+      aria-live="polite"
+    >
       <div className="sticky top-0 z-10 flex items-center border-b border-hairline bg-white/95 px-5 py-4 backdrop-blur">
         <button
           type="button"
-          onClick={() => setMobileDetail(false)}
-          className="mr-3 rounded-lg p-2 text-ink/55 transition-colors hover:bg-mist hover:text-study lg:hidden"
-          aria-label="마인드맵으로 돌아가기"
+          onClick={closeDetail}
+          className="mr-3 grid size-9 place-items-center rounded-full border border-hairline text-lg text-ink/55 transition-all hover:border-study hover:bg-mist hover:text-study"
+          aria-label="상세 닫기"
         >
-          ←
+          ×
         </button>
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-study">
           {selectedNote ? 'Study record' : selectedTopic ? 'Topic notes' : 'Knowledge detail'}
@@ -253,7 +295,7 @@ export function MindmapExplorer({
       )}
 
       {selectedTopic && (
-        <div className="px-6 py-7">
+        <div className="mx-auto max-w-6xl px-6 py-8 sm:px-9 lg:px-12 lg:py-10">
           <div className="flex items-start gap-4">
             <span className="growth-ring relative mt-1 grid size-11 shrink-0 place-items-center rounded-full bg-study text-xs font-bold text-white">
               {selectedTopic.name.slice(0, 1)}
@@ -311,7 +353,7 @@ export function MindmapExplorer({
       )}
 
       {selectedNote && (
-        <article className="px-6 py-7">
+        <article className="mx-auto max-w-6xl px-6 py-8 sm:px-9 lg:px-12 lg:py-10">
           <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-full bg-mist text-xs font-bold text-study">
               {selectedNote.author.displayName.slice(0, 1)}
@@ -323,18 +365,39 @@ export function MindmapExplorer({
           </div>
           <h2 className="font-display mt-6 text-2xl font-bold leading-snug text-ink">{selectedNote.title}</h2>
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {noteTopics(selectedNote.id).map((topic) => (
+            {selectedNoteLinks.map(({ mapping, topic }) => (
               <button
                 type="button"
                 key={topic.id}
                 onClick={() => selectNode({ kind: 'topic', id: topic.id })}
-                className="rounded-full bg-mist px-2.5 py-1 text-[10px] font-semibold text-study transition-colors hover:bg-study hover:text-white"
+                title={`${validationCopy(mapping.validationStatus)} · ${Math.round(mapping.confidence * 100)}%`}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors hover:bg-study hover:text-white ${mapping.validationStatus === 'validated' ? 'bg-mist text-study' : 'border border-dashed border-study/30 bg-white text-study/70'}`}
               >
                 {topic.name}
               </button>
             ))}
           </div>
-          <div className="mt-7 border-t border-hairline pt-2 [&_.markdown]:text-sm [&_.markdown]:leading-7">
+          {selectedNoteLinks.length > 0 && (
+            <div className="mt-7 rounded-2xl bg-mist/55 p-4 sm:p-5">
+              <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink/38">AI classification evidence</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {selectedNoteLinks.map(({ mapping, topic }) => (
+                  <div key={`evidence-${topic.id}`} className="rounded-xl border border-white/80 bg-white/80 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-ink">{topic.name}</span>
+                      <span className="font-mono text-[9px] text-study">
+                        {validationCopy(mapping.validationStatus)} · {Math.round(mapping.confidence * 100)}%
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-5 text-ink/55">
+                      {mapping.evidenceVerified && mapping.evidenceQuote ? `“${mapping.evidenceQuote}”` : mapping.reason}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="mt-9 max-w-[78ch] border-t border-hairline pt-5 [&_.markdown]:text-sm [&_.markdown]:leading-8">
             <Markdown>{selectedNote.bodyMd}</Markdown>
           </div>
           <Link
@@ -348,25 +411,14 @@ export function MindmapExplorer({
     </aside>
   )
 
-  if (!configured) {
-    return (
-      <div className="grid min-h-[480px] place-items-center rounded-[24px] border border-dashed border-hairline bg-mist/30 px-6 text-center">
-        <div className="max-w-md">
-          <span className="mx-auto grid size-14 place-items-center rounded-full bg-white text-xl text-study shadow-[0_10px_30px_rgba(25,53,42,0.06)]">⌁</span>
-          <h2 className="font-display mt-6 text-xl font-bold text-ink">마인드맵 데이터베이스 연결이 필요합니다</h2>
-          <p className="mt-3 text-sm leading-6 text-ink/52">
-            마인드맵 마이그레이션을 적용하면 다음 23:50 생성부터 주제와 기록의 연결이 저장됩니다.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div>
       <div className="flex flex-col gap-4 border-b border-hairline pb-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex items-center gap-1" role="tablist" aria-label="마인드맵 보기">
-          {(['graph', 'list', 'recent'] as ViewMode[]).map((mode) => (
+          {([
+            { mode: 'graph', label: '마인드맵' },
+            { mode: 'records', label: '주제별 기록' },
+          ] as { mode: ViewMode; label: string }[]).map(({ mode, label }) => (
             <button
               key={mode}
               type="button"
@@ -374,11 +426,12 @@ export function MindmapExplorer({
               aria-selected={view === mode}
               onClick={() => {
                 setView(mode)
-                setMobileDetail(false)
+                setDetailOpen(false)
+                setSelection(null)
               }}
               className={`relative min-h-11 px-4 text-xs font-bold transition-colors ${view === mode ? 'text-study' : 'text-ink/42 hover:text-ink'}`}
             >
-              {mode === 'graph' ? 'Graph' : mode === 'list' ? 'List' : 'Recent'}
+              {label}
               {view === mode && <span className="absolute inset-x-3 -bottom-[17px] h-0.5 rounded-full bg-study" />}
             </button>
           ))}
@@ -402,18 +455,30 @@ export function MindmapExplorer({
         </div>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-[24px] border border-hairline bg-white shadow-[0_18px_60px_rgba(25,53,42,0.06)] lg:grid lg:min-h-[640px] lg:grid-cols-[minmax(0,1fr)_370px]">
-        <section className={`${mobileDetail ? 'hidden lg:block' : 'block'} min-w-0`}>
-          {filtered.notes.length === 0 ? (
+      <div className="mt-5 overflow-hidden rounded-[26px] border border-hairline bg-white shadow-[0_20px_70px_rgba(25,53,42,0.07)]">
+        <section className="min-w-0">
+          {!configured ? (
             <div className="grid min-h-[560px] place-items-center bg-mist/25 px-6 text-center">
-              <div>
+              <div className="max-w-md">
+                <span className="mx-auto grid size-14 place-items-center rounded-full bg-white text-xl text-study shadow-[0_10px_30px_rgba(25,53,42,0.06)]">⌁</span>
+                <h2 className="font-display mt-6 text-xl font-bold text-ink">마인드맵 데이터 연결을 확인해 주세요</h2>
+                <p className="mt-3 text-sm leading-6 text-ink/52">
+                  데이터베이스 연결이 복구되면 각 팀원이 저장한 학습 기록을 바탕으로 주제와 기록의 연결을 다시 불러옵니다.
+                </p>
+              </div>
+            </div>
+          ) : filtered.notes.length === 0 ? (
+            <div className="grid min-h-[560px] place-items-center bg-mist/25 px-6 text-center">
+              <div className="max-w-md">
                 <span className="mx-auto grid size-12 place-items-center rounded-full bg-white text-study shadow-sm">○</span>
-                <p className="mt-5 text-sm font-bold text-ink/70">조건에 맞는 지식 연결이 없습니다.</p>
-                <p className="mt-2 text-xs text-ink/42">참여자·기간·주제 필터를 바꿔보세요.</p>
+                <p className="mt-5 text-sm font-bold text-ink/70">아직 연결된 지식 지도가 없습니다.</p>
+                <p className="mt-2 text-xs leading-5 text-ink/42">
+                  각 팀원이 저장한 학습 기록을 AI가 매일 23:50 KST에 주제별로 분류하고 연결합니다.
+                </p>
               </div>
             </div>
           ) : view === 'graph' ? (
-            <div className="knowledge-canvas relative min-h-[620px] overflow-hidden bg-[radial-gradient(circle_at_center,#fbfdfb_0%,#f0f7f3_68%,#eaf3ed_100%)]">
+            <div className="knowledge-canvas relative min-h-[680px] overflow-hidden bg-[radial-gradient(circle_at_center,#fbfdfb_0%,#f0f7f3_68%,#eaf3ed_100%)]">
               <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(#74b892_1px,transparent_1px)] [background-size:30px_30px]" />
               <svg className="absolute inset-0 size-full" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
                 {graphNodes.filter((node) => node.kind === 'topic').map((node) => {
@@ -437,7 +502,7 @@ export function MindmapExplorer({
 
               <button
                 type="button"
-                className="growth-ring absolute left-1/2 top-1/2 z-10 grid size-24 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-study px-3 text-center text-xs font-bold leading-4 text-white shadow-[0_18px_45px_rgba(47,125,90,0.24)]"
+                className="knowledge-root-node growth-ring absolute left-1/2 top-1/2 z-10 grid size-24 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-study px-3 text-center text-xs font-bold leading-4 text-white"
                 onClick={() => setSelection(null)}
               >
                 Study<br />Grove
@@ -455,7 +520,7 @@ export function MindmapExplorer({
                       key={`note-node-${node.id}`}
                       style={style}
                       onClick={() => selectNode({ kind: 'note', id: node.id })}
-                      title={`${note.author.displayName} · ${note.title}`}
+                      data-tooltip={`${note.author.displayName} · ${note.title}`}
                       aria-label={`기록: ${note.title}`}
                       className={`knowledge-node-note absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full ${selected ? 'is-selected' : ''}`}
                     />
@@ -479,50 +544,82 @@ export function MindmapExplorer({
                 )
               })}
 
-              <div className="absolute bottom-4 left-4 rounded-xl border border-white/80 bg-white/80 px-3 py-2 font-mono text-[9px] leading-4 text-ink/42 backdrop-blur">
-                큰 원 주제 · 작은 점 기록 · 점선 주제 관계
+              <div className="absolute bottom-4 left-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[14px] border border-white/90 bg-white/88 px-3.5 py-2.5 font-mono text-[11px] font-medium leading-5 text-ink/58 shadow-[0_8px_24px_rgba(25,53,42,0.08)] backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full border border-study/35 bg-white" />큰 원 주제</span>
+                <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-leaf" />작은 점 기록</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-4 border-t border-dashed border-study/45" />점선 주제 관계</span>
               </div>
             </div>
-          ) : view === 'list' ? (
-            <ol className="divide-y divide-hairline">
-              {filtered.topics.map((topic) => {
-                const topicNotes = filtered.notes.filter((note) => filtered.mappings.some((mapping) => mapping.noteId === note.id && mapping.topicId === topic.id))
-                const authors = [...new Set(topicNotes.map((note) => note.author.displayName))]
-                return (
-                  <li key={topic.id}>
-                    <button type="button" onClick={() => selectNode({ kind: 'topic', id: topic.id })} className="group grid w-full gap-3 px-5 py-5 text-left transition-colors hover:bg-mist/55 sm:grid-cols-[52px_1fr_auto] sm:items-center">
-                      <span className="grid size-11 place-items-center rounded-full bg-mist text-xs font-bold text-study transition-all group-hover:bg-study group-hover:text-white">{topic.name.slice(0, 1)}</span>
-                      <span>
-                        <span className="block text-sm font-bold text-ink group-hover:text-study">{topic.name}</span>
-                        <span className="mt-1 block line-clamp-1 text-xs text-ink/45">{topic.summaryMd || '연결된 기록을 확인하세요.'}</span>
-                      </span>
-                      <span className="font-mono text-[10px] text-ink/38">{topicNotes.length} notes · {authors.join(', ')}</span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ol>
           ) : (
-            <ol className="divide-y divide-hairline">
-              {[...filtered.notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((note) => (
-                <li key={note.id}>
-                  <button type="button" onClick={() => selectNode({ kind: 'note', id: note.id })} className="group w-full px-6 py-5 text-left transition-colors hover:bg-mist/55">
-                    <span className="flex flex-wrap items-center gap-2 font-mono text-[10px] text-ink/38">
-                      <span>{note.studiedOn}</span><span>·</span><span>{note.author.displayName}</span>
-                    </span>
-                    <span className="mt-2 block text-sm font-bold text-ink transition-colors group-hover:text-study">{note.title}</span>
-                    <span className="mt-3 flex flex-wrap gap-1.5">
-                      {noteTopics(note.id).map((topic) => <span key={topic.id} className="rounded-full bg-mist px-2 py-1 text-[9px] font-semibold text-study">{topic.name}</span>)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ol>
+            <div className="bg-mist/25 px-5 py-7 sm:px-8 sm:py-9">
+              <div className="flex flex-col gap-2 border-b border-hairline pb-6 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.15em] text-study">Topic library</p>
+                  <h2 className="font-display mt-2 text-2xl font-bold text-ink">주제로 모아보는 학습 기록</h2>
+                  <p className="mt-2 text-xs leading-5 text-ink/48">같은 배움에 연결된 기록을 한 묶음으로 살펴봅니다.</p>
+                </div>
+                <span className="font-mono text-[10px] text-ink/38">{topicGroups.length}개 주제</span>
+              </div>
+
+              <div className="mt-6 grid items-start gap-5 xl:grid-cols-2">
+                {topicGroups.map(({ topic, notes: topicNotes }) => (
+                  <article key={topic.id} className="overflow-hidden rounded-[22px] border border-hairline bg-white shadow-[0_12px_34px_rgba(25,53,42,0.045)]">
+                    <button
+                      type="button"
+                      onClick={() => selectNode({ kind: 'topic', id: topic.id })}
+                      className="group flex w-full items-start gap-4 border-b border-hairline px-5 py-5 text-left transition-colors hover:bg-mist/45 sm:px-6"
+                    >
+                      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-study text-sm font-bold text-white shadow-[0_8px_22px_rgba(47,125,90,0.2)]">
+                        {topic.name.slice(0, 1)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="font-display text-lg font-bold text-ink transition-colors group-hover:text-study">{topic.name}</span>
+                          <span className="rounded-full bg-mist px-2 py-1 font-mono text-[8px] font-semibold text-study">{statusCopy(topic.status)}</span>
+                        </span>
+                        <span className="mt-2 block line-clamp-2 text-xs leading-5 text-ink/48">{topic.summaryMd || '이 주제에 연결된 기록입니다.'}</span>
+                      </span>
+                      <span className="rounded-full border border-hairline px-2.5 py-1 font-mono text-[9px] text-ink/45">{topicNotes.length}</span>
+                    </button>
+
+                    <ol className="divide-y divide-hairline">
+                      {topicNotes.map((note) => (
+                        <li key={note.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectNode({ kind: 'note', id: note.id })}
+                            className="group w-full px-5 py-4 text-left transition-colors hover:bg-mist/45 sm:px-6"
+                          >
+                            <span className="block text-sm font-bold leading-6 text-ink transition-colors group-hover:text-study">{note.title}</span>
+                            <span className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[9px] text-ink/35">
+                              <span>{note.author.displayName}</span>
+                              <span aria-hidden="true">·</span>
+                              <span>{note.studiedOn}</span>
+                              <span className="ml-auto text-study/70">기록 열기 →</span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  </article>
+                ))}
+              </div>
+            </div>
           )}
         </section>
-
-        <div className={`${mobileDetail ? 'block' : 'hidden'} lg:block`}>{detailPanel}</div>
       </div>
+
+      {detailOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="상세 닫기"
+            onClick={closeDetail}
+            className="knowledge-detail-backdrop fixed inset-0 z-[60] cursor-default"
+          />
+          {detailPanel}
+        </>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1 font-mono text-[10px] text-ink/38">
         <span>{filtered.topics.length} topics · {filtered.notes.length} records · {filtered.relations.length} relations</span>
@@ -533,7 +630,7 @@ export function MindmapExplorer({
               ? `${latestGeneration.generationDate} 분류 재시도 대기`
               : latestGeneration?.status === 'generating'
                 ? '지식 지도를 정리하는 중'
-                : '첫 23:50 생성을 기다리는 중'}
+                : '저장된 학습 기록의 첫 23:50 분류를 기다리는 중'}
         </span>
       </div>
     </div>

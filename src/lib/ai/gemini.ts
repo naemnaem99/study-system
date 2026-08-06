@@ -49,11 +49,12 @@ const 응답스키마 = {
         type: Type.OBJECT,
         properties: {
           note_id: { type: Type.STRING },
-          topic_slugs: { type: Type.ARRAY, items: { type: Type.STRING } },
+          topic_slug: { type: Type.STRING },
           confidence: { type: Type.NUMBER },
           reason: { type: Type.STRING },
+          evidence_quote: { type: Type.STRING },
         },
-        required: ['note_id', 'topic_slugs', 'confidence', 'reason'],
+        required: ['note_id', 'topic_slug', 'confidence', 'reason', 'evidence_quote'],
       },
     },
     topic_relations: {
@@ -68,8 +69,9 @@ const 응답스키마 = {
             enum: ['related', 'prerequisite', 'applies', 'contrasts'],
           },
           confidence: { type: Type.NUMBER },
+          evidence_note_ids: { type: Type.ARRAY, items: { type: Type.STRING } },
         },
-        required: ['source_slug', 'target_slug', 'relation_type', 'confidence'],
+        required: ['source_slug', 'target_slug', 'relation_type', 'confidence', 'evidence_note_ids'],
       },
     },
   },
@@ -77,6 +79,7 @@ const 응답스키마 = {
 }
 
 function 프롬프트(notes: NoteForKnowledge[], existingTopics: ExistingTopic[]): string {
+  const 기존SlugById = new Map(existingTopics.map((topic) => [topic.id, topic.slug]))
   const 노트목록 = notes
     .map((n) => `### note_id=${n.id} | ${n.authorName} (${n.authorSlug}) | ${n.title}\n${n.bodyMd}`)
     .join('\n\n')
@@ -86,7 +89,9 @@ function 프롬프트(notes: NoteForKnowledge[], existingTopics: ExistingTopic[]
     : existingTopics
         .filter((topic) => topic.status !== 'archived')
         .slice(0, 80)
-        .map((topic) => `- ${topic.slug}: ${topic.name}`)
+        .map((topic) => (
+          `- ${topic.slug}: ${topic.name} | 상태=${topic.status} | 상위=${topic.parentId ? 기존SlugById.get(topic.parentId) ?? '없음' : '없음'} | 요약=${topic.summaryMd || '없음'}`
+        ))
         .join('\n')
 
   return `당신은 4인 스터디의 하루 기록을 정리하고 지식 지도를 관리하는 분류 도우미입니다.
@@ -108,10 +113,13 @@ ${노트목록}
 - topics: 오늘 노트를 설명하는 2~8개의 구체적인 학습 주제. 기존 주제와 같으면 기존 slug를 그대로 재사용하세요.
   새 slug는 짧은 영문 또는 한글 kebab-case로 작성하고, 너무 넓은 "공부", "개발" 같은 이름은 금지합니다.
   parent_slug는 상위 주제가 확실할 때만 쓰고, 없으면 빈 문자열입니다.
-- note_topics: 모든 note_id를 정확히 한 번씩 포함하고 각 기록에 가장 관련 높은 topic_slug를 1~3개 연결하세요.
-  confidence는 0~1, reason은 원문에서 확인되는 한 문장 근거입니다.
+- note_topics: 기록과 주제 연결 하나당 항목 하나를 만드세요. 모든 note_id에 가장 관련 높은 주제를 1~3개 연결하세요.
+  confidence는 0~1이며 확신을 과장하지 마세요. reason은 분류 설명입니다.
+  evidence_quote는 해당 note_id의 본문에서 글자와 순서를 바꾸지 않고 그대로 복사한 연속된 원문이어야 합니다.
+  evidence_quote는 공백을 제외하고 최소 12자 이상이어야 하며 다른 기록의 문장을 사용하면 안 됩니다.
 - topic_relations: 실제 내용 근거가 있는 주제 관계만 작성하세요. 관계가 없으면 빈 배열입니다.
   related=관련, prerequisite=선행 지식, applies=응용, contrasts=대조입니다.
+  evidence_note_ids에는 이 관계를 실제로 뒷받침하는 입력 note_id만 넣으세요.
 - 응답에 입력에 없는 note_id, profile_slug, 기존/새 topics에 없는 slug를 만들지 마세요.`
 }
 
