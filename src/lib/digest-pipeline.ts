@@ -46,6 +46,7 @@ export async function runDigestPipeline(date: string): Promise<PipelineResult> {
     status: 'done',
     body_md: result.bodyMd,
     has_connections: result.hasConnections,
+    one_liner: result.oneLiner,
     model: 'gemini-3.5-flash',
     generated_at: new Date().toISOString(),
     error_message: null,
